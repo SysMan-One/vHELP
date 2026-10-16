@@ -375,3 +375,10 @@ at all.
 | `test/package.sh` | what a package contains |
 | `packaging/postinst.in`, `postrm.in` | the scripts of a DEB or RPM: the shared catalogue |
 | `packaging/CPackProject.cmake.in` | the prefix of each package, told to CPack at packaging time |
+| `LICENSE` | Apache License 2.0 |
+
+## License
+
+Apache License 2.0, see `LICENSE`.
+
+Copyright 2026 StarLet Squad and Ruslan R. Laishev.

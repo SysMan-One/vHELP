@@ -1,4 +1,5 @@
 #+++
+#	SPDX-License-Identifier: Apache-2.0
 #
 #	FACILITY:	HELP - OpenVMS-style help library subsystem for Linux
 #
@@ -13,6 +14,9 @@
 #	CREATION DATE:	31-JUL-2026
 #
 #	MODIFICATION HISTORY:
+#
+#		16-OCT-2026	RRL	License: Apache-2.0 (LICENSE), told to CPack as well.  No new
+#					version: the code and what is installed stay as in X01-37.
 #
 #		 6-OCT-2026	RRL	X01-37 : Cross builds.  The help library of the product and
 #					every help_add_library() of a consumer are translated by a
@@ -595,6 +599,7 @@ needs the StarLet package (UTILITY\$ROUTINES) as well.")
 	set(CPACK_PACKAGE_CHECKSUM		SHA256)
 	set(CPACK_STRIP_FILES			ON)
 	set(CPACK_VERBATIM_VARIABLES		ON)
+	set(CPACK_RESOURCE_FILE_LICENSE		"${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 
 	#
 	#	The prefix a system package is written into: the one the build
@@ -657,6 +662,7 @@ needs the StarLet package (UTILITY\$ROUTINES) as well.")
 	#
 	set(CPACK_RPM_FILE_NAME				RPM-DEFAULT)
 	set(CPACK_RPM_PACKAGE_GROUP			"Applications/System")
+	set(CPACK_RPM_PACKAGE_LICENSE			"Apache-2.0")
 	set(CPACK_RPM_POST_INSTALL_SCRIPT_FILE		"${CMAKE_CURRENT_BINARY_DIR}/packaging/postinst")
 	set(CPACK_RPM_POSTUN_SCRIPT_FILE		"${CMAKE_CURRENT_BINARY_DIR}/packaging/postrm")
 	set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
