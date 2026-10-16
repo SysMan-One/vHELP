@@ -1,0 +1,17 @@
+#	Source this from ~/.bashrc, or drop it into /etc/profile.d, to type
+#	@HELP_HELPNAME@ simply as "help".
+#
+#	Bash, ksh and their kin look a builtin up BEFORE the search path, so
+#	no ordering of PATH can bring an image named "help" to the front:
+#	the shell answers first, about its own builtins.  The only way is to
+#	turn that builtin off, which is what the line below does - and the
+#	cost is exactly what it says: "help while" and the like will no
+#	longer describe the shell's own syntax.
+#
+#	Shells with no such builtin - dash, zsh, fish - need none of this;
+#	the image is found through PATH like any other command.
+
+if [ -n "${BASH_VERSION-}" ]
+then
+	enable -n help 2>/dev/null
+fi

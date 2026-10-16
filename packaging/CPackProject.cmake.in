@@ -1,0 +1,37 @@
+#+++
+#
+#	FACILITY:	HELP - OpenVMS-style help library subsystem for Linux
+#
+#	MODULE:		packaging/CPackProject.cmake	(generated from CPackProject.cmake.in)
+#
+#	ABSTRACT:	What CPACK is told at packaging time, when it knows
+#			which generator it is running.
+#
+#	DESCRIPTION:	The archive and the system packages disagree about
+#			the prefix.  A tarball is meant to be unpacked anywhere -
+#			the images find their libraries beside themselves, so
+#			bin/, lib/ and share/ at its top is all it needs.  A DEB
+#			or an RPM is written into the file system by an installer
+#			that lays the files where the package says, so it has to
+#			say: the prefix the build was configured for, which is
+#			the one the images carry in HELP_DEFLIB.
+#
+#			CMakeLists.txt sees no generator - it is named to CPACK,
+#			not to CMAKE - so the choice is made here, in the file
+#			CPACK_PROJECT_CONFIG_FILE names, read once per generator.
+#
+#	AUTHOR:		StarLet Squad and Ruslan R. Laishev (AKA: BadAss SysMan)
+#
+#	CREATION DATE:	 8-SEP-2026
+#
+#	MODIFICATION HISTORY:
+#
+#		 8-SEP-2026	RRL	X01-36 : Initial version.
+#
+#---
+
+if ( CPACK_GENERATOR MATCHES "^(DEB|RPM)$" )
+	set(CPACK_PACKAGING_INSTALL_PREFIX "@HELP_PKGPREFIX@")
+else()
+	set(CPACK_PACKAGING_INSTALL_PREFIX "/")
+endif()

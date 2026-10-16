@@ -1,0 +1,37 @@
+#!/bin/sh
+#+++
+#
+#	FACILITY:	HELP - OpenVMS-style help library subsystem for Linux
+#
+#	MODULE:		packaging/postrm	(generated from postrm.in)
+#
+#	ABSTRACT:	What the package does once its files are gone: removes
+#			the catalogue shared by every user.
+#
+#	DESCRIPTION:	The catalogue is a derived thing, built by postinst from
+#			the libraries the package installed.  With the image that
+#			reads it gone it is of no use to anybody, so it goes too.
+#
+#			Not on an upgrade: there the new package's postinst
+#			rebuilds it a moment later, and between the two the old
+#			one is still valid.  DEB says "upgrade" in that case, RPM
+#			passes the number of instances left, which is 0 only for
+#			a removal.
+#
+#	AUTHOR:		StarLet Squad and Ruslan R. Laishev (AKA: BadAss SysMan)
+#
+#	CREATION DATE:	 8-SEP-2026
+#
+#	MODIFICATION HISTORY:
+#
+#		 8-SEP-2026	RRL	X01-36 : Initial version.
+#
+#---
+
+case "${1-}" in
+	remove|purge|0)
+		rm -rf "@HELP_SYSCACHE@"
+		;;
+esac
+
+exit 0

@@ -1,0 +1,49 @@
+#!/bin/sh
+#+++
+#
+#	FACILITY:	HELP - OpenVMS-style help library subsystem for Linux
+#
+#	MODULE:		packaging/postinst	(generated from postinst.in)
+#
+#	ABSTRACT:	What the package does once its files are in place:
+#			builds the catalogue shared by every user.
+#
+#	DESCRIPTION:	A "cmake --install" builds the shared catalogue itself,
+#			at the end of the installation.  A package cannot: at the
+#			time its files are gathered they lie in a staging tree,
+#			and a catalogue built then would record the paths of that
+#			tree, which nothing will ever read.  So the package
+#			carries the step here and runs it on the system it is
+#			installed into, where the paths are the real ones.
+#
+#			Best effort, as at install: a catalogue that cannot be
+#			written is left to "@HELP_HELPNAME@ /SYSCACHE", and the
+#			package installs all the same.
+#
+#			The same text serves DEB and RPM: the one passes
+#			"configure", the other a count, and neither is looked at.
+#
+#	AUTHOR:		StarLet Squad and Ruslan R. Laishev (AKA: BadAss SysMan)
+#
+#	CREATION DATE:	 8-SEP-2026
+#
+#	MODIFICATION HISTORY:
+#
+#		 8-SEP-2026	RRL	X01-36 : Initial version.
+#
+#---
+
+HELP_IMAGE="@HELP_PKGPREFIX@/@CMAKE_INSTALL_BINDIR@/@HELP_HELPNAME@"
+HELP_LIBS="@HELP_PKGPREFIX@/@HELP_LIBDIR@"
+
+if [ -x "$HELP_IMAGE" ]
+then
+	mkdir -p "@HELP_SYSCACHE@" 2>/dev/null
+
+	if ! "$HELP_IMAGE" /SYSCACHE /LIBRARY="$HELP_LIBS" > /dev/null 2>&1
+	then
+		echo "The shared catalogue was not built; run '@HELP_HELPNAME@ /SYSCACHE' with the right to write @HELP_SYSCACHE@" >&2
+	fi
+fi
+
+exit 0

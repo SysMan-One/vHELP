@@ -1,0 +1,86 @@
+#ifndef	__HELPVERS$H__
+#define	__HELPVERS$H__	1
+
+/*
+**++
+**
+**  FACILITY:	HELP - OpenVMS-style help library subsystem for Linux
+**
+**  MODULE:	helpvers.h		(generated from helpvers.h.in)
+**
+**  ABSTRACT:	Identification of the product and the configuration values
+**		that are fixed when the product is built.
+**
+**  DESCRIPTION: The file is produced by CONFIGURE_FILE at configuration
+**		time.  It exists because a macro whose name carries a '$'
+**		cannot be passed on the command line of the compiler: the
+**		Makefile generator does not escape the dollar, and MAKE
+**		expands it away before the compiler ever sees it.  A
+**		generated header has no such problem and is, besides, what
+**		the sibling products of this family do.
+**
+**		The variables the values come from carry no '$' either.
+**		CONFIGURE_FILE recognises @NAME@ only for a name made of
+**		the ordinary identifier characters, and a name with a '$'
+**		has to be escaped everywhere it is written - on the command
+**		line of CMAKE, inside INSTALL(CODE), in a message - which
+**		is a standing invitation to get one of them wrong.  The
+**		macros defined below keep the '$'; the variables that fill
+**		them do not.
+**
+**  AUTHOR:	StarLet Squad and Ruslan R. Laishev (AKA: BadAss SysMan)
+**
+**  CREATION DATE:  31-JUL-2026
+**
+**  MODIFICATION HISTORY:
+**
+**	X.01-00		31-JUL-2026	CLAUDE
+**		Initial version.
+**
+**--
+*/
+
+/*  Identification of the product.
+**
+**  An identification is written Xnn-nn, optionally followed by ECOnn: the
+**  major and the minor number of the module, and the number of an
+**  engineering change order laid on top of that minor - a correction too
+**  small to be a revision of its own, X01-04ECO1 after X01-04.  The
+**  history block in the head of every module carries the same labels, so
+**  __IDENT__ is always the topmost entry of the block below it.
+**
+**  __REV__ is the same thing in the manner of this system, derived rather
+**  than written: Xaa-bb[ECOc] yields aa.bb.c, the fields taken as they
+**  stand.  So X01-04 is 01.04.0, X01-04ECO1 is 01.04.1, and X02-00ECO12
+**  is 02.00.12.  A module carries one number of its own - the
+**  identification - and everything else follows from it.
+**
+**  This one, HELP$K_IDENT, names the delivery rather than a module: it is
+**  stamped into the header of every library the product builds, so a
+**  library says which delivery made it.				*/
+#define	HELP$K_IDENT	"@HELP_IDENT@"
+#define	HELP$K_REV	"@HELP_REV@"
+
+/*  The library HELP reads when neither /LIBRARY nor the logical name
+**  is given								*/
+#define	HELP$K_DEFLIB	"@HELP_DEFLIB@"
+
+/*  The library directory relative to the installation prefix, used to
+**  find the libraries again when the product has been moved		*/
+#define	HELP$K_LIBDIR	"@HELP_LIBDIR@"
+
+/*  The environment variable that overrides the built-in library		*/
+#define	HELP$K_LOGNAME	"@HELP_LOGNAME@"
+
+/*  The names the images are installed under.  HELP is a builtin of
+**  every Bourne-derived shell, so an image of that name would never be
+**  reached from an interactive session				*/
+#define	HELP$K_HELPNAME	"@HELP_HELPNAME@"
+#define	HELP$K_TRANNAME	"@HELP_TRANNAME@"
+
+/*  The directory of the catalogue shared by every user of the system,
+**  written by HELP/SYSCACHE and read - never written - by an ordinary
+**  run								*/
+#define	HELP$K_SYSCACHE	"@HELP_SYSCACHE@"
+
+#endif	/* __HELPVERS$H__ */
