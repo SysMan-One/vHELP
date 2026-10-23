@@ -330,7 +330,9 @@ fenced block, ``` or ~~~    copied verbatim, shifted right by two
                             disappear, and nothing inside a fence
                             is interpreted
 **strong**  __strong__      the markers are removed
-`code`                      the back-quotes are removed
+`code`                      the back-quotes are removed, the text
+                            between them is taken as it stands
+                            (\x is \x there)
 [text](url)                 becomes: text
 ![alt](url)                 becomes: alt
 - item   * item   + item    the bullet becomes the letter o

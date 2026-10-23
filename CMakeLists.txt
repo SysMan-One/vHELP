@@ -26,7 +26,9 @@
 #					hlbcat.c X01-01; HELP_BUILD_SYSCACHE is off for WIN32 and
 #					the shell tests are replaced there by two run under
 #					CMAKE_CROSSCOMPILING_EMULATOR.  A .hlb is the same file on
-#					both systems.  The Linux build is unchanged.
+#					both systems.  On every system: the text of a code span is
+#					taken as it stands, a backslash in it is no escape any more
+#					(mdparse.c X01-01, as CommonMark has it).
 #
 #		16-OCT-2026	RRL	License: Apache-2.0 (LICENSE), told to CPack as well.  No new
 #					version: the code and what is installed stay as in X01-37.

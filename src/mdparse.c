@@ -1,6 +1,6 @@
 #define	__MODULE__	"MDPARSE"
-#define	__IDENT__	"X01-00"
-#define	__REV__		"01.00.0"
+#define	__IDENT__	"X01-01"
+#define	__REV__		"01.01.0"
 
 /*
 **++
@@ -43,7 +43,9 @@
 **
 **		The body of a topic is rendered into plain text: fenced code
 **		blocks are copied verbatim, the strong-emphasis markers, the
-**		code back-quotes and the link brackets are removed, list
+**		code back-quotes and the link brackets are removed (the text of
+**		a code span is taken as it stands - a backslash in it is a
+**		backslash, as CommonMark has it), list
 **		bullets become 'o' and the horizontal rules disappear.
 **		Leading and trailing blank lines of a topic are dropped, so
 **		the display never opens or closes with white space.
@@ -56,6 +58,12 @@
 **
 **	X01-00		31-JUL-2026	RRL
 **		Initial version.
+**
+**	X01-01		23-OCT-2026	RRL
+**		A code span is copied as it stands: the backslash escapes, the
+**		emphasis and the links are not looked for between its
+**		back-quotes. `C:\ProgramData\yaVNA` came out as
+**		"C:ProgramDatayaVNA" (yaVNA's Windows help topics).
 **
 **--
 */
@@ -377,10 +385,45 @@ int		l_status = STS$K_SUCCESS;
 			continue;
 			}
 
-		/* Code back-quotes leave the text they delimit in place */
+		/*
+		**  A code span: the back-quotes go, the text between them stays
+		**  as it is - no escapes, emphasis or links inside. It closes on
+		**  a run of as many back-quotes as opened it; one space just
+		**  inside each end is dropped when both are there. An unclosed
+		**  run is removed, as a back-quote always was.
+		*/
 		if ( a_src[l_src] == '`' )
 			{
-			l_src++;
+		unsigned	l_run = 0, l_end, l_beg, l_cls = 0;
+
+			while ( ((l_src + l_run) < a_srclen) && (a_src[l_src + l_run] == '`') )
+				l_run++;
+
+			l_beg = l_src + l_run;
+
+			for ( l_end = l_beg; l_end < a_srclen; l_end += l_cls ? l_cls : 1 )
+				{
+				for ( l_cls = 0; ((l_end + l_cls) < a_srclen) && (a_src[l_end + l_cls] == '`'); l_cls++ )
+					;
+
+				if ( l_cls == l_run )
+					break;
+				}
+
+			if ( l_end >= a_srclen )
+				{
+				l_src += l_run;
+				continue;
+				}
+
+			l_src = l_end + l_run;
+
+			if ( ((l_end - l_beg) >= 2) && (a_src[l_beg] == ' ') && (a_src[l_end - 1] == ' ') )
+				l_beg++, l_end--;
+
+			while ( (l_beg < l_end) && (l_dst < a_dstsz) )
+				a_dst [l_dst++] = a_src [l_beg++];
+
 			continue;
 			}
 

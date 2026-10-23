@@ -21,6 +21,9 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		23-OCT-2026	RRL	X01-38 : 66 - a code span is copied as it stands
+#					(mdparse.c X01-01).
+#
 #		11-SEP-2026	RRL	X01-36ECO1 : XDG_CACHE_HOME inherited from the shell
 #					diverted the private cache away from the home the cache
 #					checks point HOME at; the variable is dropped.  The
@@ -1466,6 +1469,26 @@ if [ -z "$UNDOC" ]
 then	ok "every setting of the build is named in the README"
 else	ko "settings named nowhere:$UNDOC"
 fi
+
+#
+#	66. The text of a code span is taken as it stands: a backslash in it
+#	    is a backslash (a Windows path), a doubled back-quote encloses a
+#	    single one, an escape outside a span still escapes.
+#
+cat > "$WRK/span.md" <<'EOF'
+# SPAN
+
+Path `C:\ProgramData\yaVNA` and `` a`b `` and \*x\* and `**kept**`.
+EOF
+
+"$HELPTRAN" "$WRK/span.md" /OUTPUT="$WRK/span.hlb" > /dev/null 2>&1
+SPAN=`"$HELP" /LIBRARY="$WRK/span.hlb" SPAN /NOPAGE 2>/dev/null | grep 'Path'`
+
+case "$SPAN" in
+	*'Path C:\ProgramData\yaVNA and a`b and *x* and **kept**.'*)
+		ok "a code span is copied as it stands" ;;
+	*)	ko "a code span rendered as: $SPAN" ;;
+esac
 
 echo ""
 echo "%HELP-I-SMOKE, $CHECK check(s) performed, $FAILED failure(s)"
