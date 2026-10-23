@@ -1,6 +1,6 @@
 #define	__MODULE__	"HELP"
-#define	__IDENT__	"X01-12"
-#define	__REV__		"01.12.0"
+#define	__IDENT__	"X01-13"
+#define	__REV__		"01.13.0"
 
 /*
 **++
@@ -69,6 +69,11 @@
 **  CREATION DATE:  31-JUL-2026
 **
 **  MODIFICATION HISTORY:
+**
+**	X01-13		23-OCT-2026	RRL
+**		/LIBRARY and HELP_LIBRARY tell a search path from a single
+**		library by HELP$K_PATHSEP rather than by a ':' of their own -
+**		on Windows (';' there) every C:\... would have been a path.
 **
 **	X01-12		 4-OCT-2026	CLD
 **		Q at the paging prompt left ABORT of the output context
@@ -1186,7 +1191,7 @@ unsigned	l_len, l_rec;
 	l_len = (unsigned) strlen(l_tmp);
 	l_rec = (unsigned) strlen(HELP$K_RECURSE);
 
-	if ( !strchr(l_tmp, ':')
+	if ( !strchr(l_tmp, HELP$K_PATHSEP)
 		&& !((l_len > l_rec) && !strcmp(l_tmp + l_len - l_rec, HELP$K_RECURSE))
 		&& !(!stat(l_tmp, &l_st) && S_ISDIR(l_st.st_mode)) )
 		{

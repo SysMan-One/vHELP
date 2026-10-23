@@ -298,6 +298,32 @@ Anything a user is meant to read goes through this facility's own
 message catalogue rather than through `$LOG` regardless -- `$LOG` is
 the developer's channel, and the two are not interchangeable.
 
+### Windows x64
+
+From X01-38 the library and both utilities also build for Windows 10+
+x64 with MinGW-w64, cross from Linux - first of all so that yaVNA's
+`yavna.exe` answers `help` from its own `yavna.hlb`:
+
+    cmake -S . -B build-win64 \
+        -DCMAKE_TOOLCHAIN_FILE=<yaVNA>/cmake/mingw-w64-x86_64.cmake \
+        -DHELP_HOST_TRANSLATOR=/usr/local/bin/vhelptran \
+        -DCMAKE_INSTALL_PREFIX=/opt/yavna-win64
+    cmake --build build-win64 && cmake --install build-win64
+
+StarLet 1.6.10 or later built for Windows must be in that prefix.
+A `.hlb` is the same file on both systems: one translated on Linux
+reads on Windows and back.  What differs there:
+
+- a search path (`HELP_LIBRARY`, `/LIBRARY`) is separated by `;`,
+  because `:` is part of `C:\...`;
+- there is no catalogue cache, private or shared: the catalogue is
+  built on every run, and `vhelp /SYSCACHE` says it is not available;
+- the console is switched to UTF-8 (and left so) when a topic is shown, so Russian
+  text is readable whatever its code page was.
+
+The shell tests do not run there; `ctest` runs two checks under wine64
+instead (`win_tran`, `win_show`).
+
 ## Packaging
 
 CPack makes the packages out of the same install rules, so a package

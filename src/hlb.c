@@ -1,6 +1,6 @@
 #define	__MODULE__	"HLB"
-#define	__IDENT__	"X01-00"
-#define	__REV__		"01.00.0"
+#define	__IDENT__	"X01-01"
+#define	__REV__		"01.01.0"
 
 /*
 **++
@@ -41,6 +41,11 @@
 **
 **  MODIFICATION HISTORY:
 **
+**	X01-01		23-OCT-2026	RRL
+**		Windows x64 (MinGW-w64): the library is written O_BINARY, and
+**		moved over an existing one with MoveFileEx - RENAME(3) of the
+**		C RTL there refuses a target that exists.
+**
 **	X01-00		31-JUL-2026	RRL
 **		Initial version.
 **
@@ -54,6 +59,10 @@
 #include	<unistd.h>
 #include	<fcntl.h>
 #include	<sys/stat.h>
+
+#ifdef	_WIN32
+#include	<windows.h>
+#endif
 
 #include	"helpdef.h"
 
@@ -666,7 +675,7 @@ int		l_fd = -1, l_index = 0, l_status = STS$K_SUCCESS;
 	__util$fao("!AZ.tmp", &l_tmplen, &l_tmpdsc, (fao_prm_t) a_fspec);
 	l_tmp [$MIN(l_tmplen, (unsigned short) sizeof(l_tmp) - 1)] = '\0';
 
-	if ( 0 > (l_fd = open(l_tmp, O_WRONLY | O_CREAT | O_TRUNC, 0644)) )
+	if ( 0 > (l_fd = open(l_tmp, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, 0644)) )
 		{
 		l_status = help$putmsg(HELP$_OPENOUT, 3, (fao_prm_t) l_tmp, (fao_prm_t) errno,
 					(fao_prm_t) strerror(errno));
@@ -686,9 +695,15 @@ int		l_fd = -1, l_index = 0, l_status = STS$K_SUCCESS;
 						(fao_prm_t) strerror(errno));
 		}
 
+#ifdef	_WIN32
+	if ( (1 & l_status) && !MoveFileExA(l_tmp, a_fspec, MOVEFILE_REPLACE_EXISTING) )
+		l_status = help$putmsg(HELP$_WRITERR, 3, (fao_prm_t) a_fspec, (fao_prm_t) GetLastError(),
+					(fao_prm_t) "GetLastError() of MoveFileEx(), not an errno");
+#else
 	if ( (1 & l_status) && rename(l_tmp, a_fspec) )
 		l_status = help$putmsg(HELP$_WRITERR, 3, (fao_prm_t) a_fspec, (fao_prm_t) errno,
 					(fao_prm_t) strerror(errno));
+#endif
 
 	if ( !(1 & l_status) )
 		unlink(l_tmp);

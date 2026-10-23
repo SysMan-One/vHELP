@@ -1,6 +1,6 @@
 #define	__MODULE__	"HLBCAT"
-#define	__IDENT__	"X01-00"
-#define	__REV__		"01.00.0"
+#define	__IDENT__	"X01-01"
+#define	__REV__		"01.01.0"
 
 /*
 **++
@@ -80,6 +80,20 @@
 **
 **  MODIFICATION HISTORY:
 **
+**	X01-01		23-OCT-2026	RRL
+**		Windows x64 (MinGW-w64, for yaVNA's yavna.exe).  The search
+**		path is separated by HELP$K_PATHSEP (';' there).  There is no
+**		cache on Windows, private or shared: the checks that make
+**		one safe - a descriptor of the directory, OPENAT and the rest
+**		relative to it, the owner and the mode - have no counterpart
+**		in its C RTL, and a cache that cannot be trusted is not had
+**		at all, as the description above says; the catalogue is
+**		built on every run, which for the handful of libraries of a
+**		Windows installation costs nothing worth saving.
+**		VHELP/SYSCACHE says so (HELP$_CACHERR).  The image is
+**		located with GetModuleFileName, its directory ending at the
+**		last '\' or '/'; the null device is NUL.
+**
 **	X01-00		 1-AUG-2026	RRL
 **		Initial version.
 **
@@ -96,9 +110,13 @@
 #include	<sys/stat.h>
 #include	<sys/types.h>
 
+#ifdef	_WIN32
+#include	<windows.h>
+#endif
+
 #include	"helpdef.h"
 
-#define	CAT$K_SEP	':'			/* Separator of the search path		*/
+#define	CAT$K_SEP	HELP$K_PATHSEP		/* Separator of the search path		*/
 
 /*
 **  S_CAT$SCANDIR calls it and stands ahead of it, the two being written in
@@ -260,6 +278,27 @@ char		l_exe [HELP$K_SZ_PATH], l_dir [HELP$K_SZ_PATH];
 char		l_langdir [HELP$K_SZ_PATH], l_lang [32];
 unsigned short	l_len = 0;
 fao_desc_t	l_dsc = $FAO_DESC(l_dir), l_langdsc = $FAO_DESC(l_langdir);
+#ifdef	_WIN32
+DWORD		l_red;
+char		*l_sep;
+
+	if ( !(l_red = GetModuleFileNameA(NULL, l_exe, (DWORD) sizeof(l_exe))) || (l_red >= sizeof(l_exe)) )
+		return	STS$K_WARN;
+
+	l_exe [l_red] = '\0';
+
+	/* Strip the file name, then the 'bin' component it lives in; either slash separates there */
+	for ( int i = 0; i < 2; i++ )
+		{
+		if ( !(l_sep = strrchr(l_exe, '\\')) || (strrchr(l_exe, '/') > l_sep) )
+			l_sep = strrchr(l_exe, '/');
+
+		if ( !l_sep )
+			return	STS$K_WARN;
+
+		*l_sep = '\0';
+		}
+#else
 ssize_t		l_red;
 
 	if ( 0 >= (l_red = readlink("/proc/self/exe", l_exe, sizeof(l_exe) - 1)) )
@@ -277,6 +316,7 @@ ssize_t		l_red;
 		return	STS$K_WARN;
 
 	*strrchr(l_exe, '/') = '\0';
+#endif
 
 	__util$fao("!AZ/!AZ", &l_len, &l_dsc, (fao_prm_t) l_exe, (fao_prm_t) HELP$K_LIBDIR);
 	l_dir [$MIN(l_len, (unsigned short) sizeof(l_dir) - 1)] = '\0';
@@ -428,6 +468,12 @@ static	int	s_cat$opendir	(
 		int *		a_fd
 			)
 {
+#ifdef	_WIN32
+	/* Nothing to hold a directory by - see the history, X01-01 */
+	*a_fd = -1;
+
+	return	STS$K_WARN;
+#else
 struct stat	l_st = {0};
 int		l_fd;
 
@@ -464,6 +510,7 @@ int		l_fd;
 	*a_fd = l_fd;
 
 	return	STS$K_SUCCESS;
+#endif
 }
 
 
@@ -503,6 +550,12 @@ fao_desc_t	l_dsc = $FAO_DESC(l_dir);
 	a_buf[0] = '\0';
 	*a_fd	 = -1;
 
+#ifdef	_WIN32
+	/* No private cache on Windows, quietly - see the history, X01-01 */
+	(void) l_env; (void) l_len; (void) l_dsc; (void) l_dir;
+
+	return	STS$K_WARN;
+#else
 	if ( (l_env = getenv("HELP_CACHE")) && *l_env )
 		help$strcpy((unsigned) sizeof(l_dir), l_dir, l_env);
 	else if ( (l_env = getenv("XDG_CACHE_HOME")) && (*l_env == '/') )
@@ -553,6 +606,7 @@ fao_desc_t	l_dsc = $FAO_DESC(l_dir);
 	help$strcpy(a_bufsz, a_buf, l_dir);
 
 	return	STS$K_SUCCESS;
+#endif
 }
 
 
@@ -760,7 +814,7 @@ int		l_scan, l_quiet;
 
 	if ( l_quiet >= 0 )
 		{
-	int	l_null = open("/dev/null", O_WRONLY);
+	int	l_null = open(HELP$K_NULLDEV, O_WRONLY);
 
 		if ( l_null >= 0 )
 			{
@@ -945,8 +999,12 @@ int		l_lib;
 		__util$fao("!AZ/!AZ", &l_len, &l_dsc, (fao_prm_t) a_dir, (fao_prm_t) l_subs[i]);
 		l_spec [$MIN(l_len, (unsigned short) sizeof(l_spec) - 1)] = '\0';
 
-		/* LSTAT, not STAT - a link to a directory is not descended into */
+		/* LSTAT, not STAT - a link to a directory is not descended into (Windows: no LSTAT, nor links in its C RTL) */
+#ifdef	_WIN32
+		if ( !stat(l_spec, &l_st) && S_ISDIR(l_st.st_mode) )
+#else
 		if ( !lstat(l_spec, &l_st) && S_ISDIR(l_st.st_mode) )
+#endif
 			{
 			s_cat$addent(a_cat, l_spec, 1, NULL);
 			s_cat$scandir(a_cat, l_spec, a_depth - 1, a_store);
@@ -1274,6 +1332,11 @@ int		l_fd;
 	if ( (a_dirfd < 0) || !a_file || !a_file[0] )
 		return	STS$K_WARN;
 
+#ifdef	_WIN32
+	(void) l_hdr; (void) l_st; (void) l_entsz; (void) l_keysz; (void) l_crc; (void) l_fd; (void) a_checkpath;
+
+	return	STS$K_WARN;			/* A_DIRFD is never had there, see S_CAT$OPENDIR */
+#else
 	/* Relative to the directory that was inspected, not to its name */
 	if ( 0 > (l_fd = openat(a_dirfd, a_file, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)) )
 		return	STS$K_WARN;
@@ -1366,6 +1429,7 @@ int		l_fd;
 	$TRACE("%s: %u element(s), %u topic(s)", a_file, a_cat->entcnt, a_cat->keycnt);
 
 	return	STS$K_SUCCESS;
+#endif
 }
 
 
@@ -1408,6 +1472,11 @@ int		l_fd, l_status = STS$K_SUCCESS;
 	if ( (a_dirfd < 0) || !a_file || !a_file[0] )
 		return	STS$K_WARN;
 
+#ifdef	_WIN32
+	(void) l_hdr; (void) l_tmp; (void) l_len; (void) l_dsc; (void) l_entsz; (void) l_keysz; (void) l_fd; (void) l_status; (void) a_mode;
+
+	return	STS$K_WARN;			/* A_DIRFD is never had there, see S_CAT$OPENDIR */
+#else
 	__util$fao("!AZ.!UL", &l_len, &l_dsc, (fao_prm_t) a_file, (fao_prm_t) (unsigned) getpid());
 	l_tmp [$MIN(l_len, (unsigned short) sizeof(l_tmp) - 1)] = '\0';
 
@@ -1456,6 +1525,7 @@ int		l_fd, l_status = STS$K_SUCCESS;
 	$TRACE("%s: status=%#x", a_file, l_status);
 
 	return	l_status;
+#endif
 }
 
 
@@ -1582,8 +1652,13 @@ char		l_sysdir [HELP$K_SZ_PATH];
 
 	if ( !(1 & s_cat$opendir(l_sysdir, 0, &l_cat->cachefd)) )
 		{
+#ifdef	_WIN32
+		help$putmsg(HELP$_CACHERR, 2, (fao_prm_t) l_sysdir,
+				(fao_prm_t) "there is no shared catalogue on Windows");
+#else
 		help$putmsg(HELP$_CACHERR, 2, (fao_prm_t) l_sysdir,
 				(fao_prm_t) "it is not a directory writable by its owner alone");
+#endif
 
 		cat$close(l_cat);
 

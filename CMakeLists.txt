@@ -15,6 +15,19 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		23-OCT-2026	RRL	X01-38 : Windows x64.  The library and both utilities build
+#					with MinGW-w64 (yaVNA's cmake/mingw-w64-x86_64.cmake), so
+#					that yavna.exe answers HELP from its own yavna.hlb: a library
+#					is read and written O_BINARY, the search path is separated by
+#					';' there (HELP$K_PATHSEP), the console geometry comes from
+#					GetConsoleScreenBufferInfo and the console is switched to
+#					UTF-8, the image is located with GetModuleFileName.  No
+#					catalogue cache on Windows, private or shared - see
+#					hlbcat.c X01-01; HELP_BUILD_SYSCACHE is off for WIN32 and
+#					the shell tests are replaced there by two run under
+#					CMAKE_CROSSCOMPILING_EMULATOR.  A .hlb is the same file on
+#					both systems.  The Linux build is unchanged.
+#
 #		16-OCT-2026	RRL	License: Apache-2.0 (LICENSE), told to CPack as well.  No new
 #					version: the code and what is installed stay as in X01-37.
 #
@@ -95,7 +108,7 @@ endif()
 #
 #	Product identification and configuration
 #
-set(HELP_IDENT   "X01-37"  CACHE STRING  "Identification of the product")
+set(HELP_IDENT   "X01-38"  CACHE STRING  "Identification of the product")
 
 #
 #	The one key of level 1 the help library carries.  The catalogue of a
@@ -518,7 +531,13 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/helplib_ru.hlb DESTINATION ${HELP_LIBD
 #	all.  A package builds it from its postinst, on the system it lands
 #	in; see packaging/postinst.in.
 #
-option(HELP_BUILD_SYSCACHE "Build the shared catalogue when installing" ON)
+#	Windows has no shared catalogue (hlbcat.c X01-01), and a cross build
+#	must not make directories of the build host's /var/cache.
+if ( WIN32 )
+	option(HELP_BUILD_SYSCACHE "Build the shared catalogue when installing" OFF)
+else()
+	option(HELP_BUILD_SYSCACHE "Build the shared catalogue when installing" ON)
+endif()
 
 if ( HELP_BUILD_SYSCACHE )
 	install(CODE "

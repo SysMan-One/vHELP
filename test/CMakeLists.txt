@@ -7,9 +7,36 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		23-OCT-2026	RRL	X01-38 : WIN32 - win_tran and win_show under the
+#					emulator instead of the shell tests.
+#
 #		 8-SEP-2026	RRL	X01-36 : A check of what a package contains, see
 #					test/package.sh.
 #---
+
+#
+#	Windows: the shell scripts below do not run there.  Two checks instead,
+#	run under CMAKE_CROSSCOMPILING_EMULATOR (wine64) from the build
+#	directory - a path is given relative to it, an absolute one beginning
+#	with '/' being a qualifier to these utilities: the librarian translates
+#	the manual, and the browser reads a topic out of the library the host
+#	translator made (a .hlb is the same file on both systems).
+#
+if ( WIN32 )
+	file(RELATIVE_PATH help_mdrel ${PROJECT_BINARY_DIR} ${PROJECT_SOURCE_DIR}/doc/helplib.md)
+
+	add_test(NAME win_tran
+		COMMAND helptran ${help_mdrel} /OUTPUT=wintest.hlb /IDENT=WINTEST
+		WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
+	set_tests_properties(win_tran PROPERTIES PASS_REGULAR_EXPRESSION "HELP-I-CREATED")
+
+	add_test(NAME win_show
+		COMMAND helpexe /LIBRARY=helplib.hlb HELP LIBRARY
+		WORKING_DIRECTORY ${PROJECT_BINARY_DIR})
+	set_tests_properties(win_show PROPERTIES PASS_REGULAR_EXPRESSION "LIBRARY" FAIL_REGULAR_EXPRESSION "HELP-[EWF]-")
+
+	return()
+endif()
 
 add_test(NAME smoke
 	COMMAND ${CMAKE_COMMAND} -E env

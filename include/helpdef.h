@@ -37,6 +37,13 @@
 **
 **  MODIFICATION HISTORY:
 **
+**	X01-02		23-OCT-2026	RRL
+**		Windows x64 (MinGW-w64, for yaVNA's yavna.exe): HELP$K_PATHSEP,
+**		the separator of a search path - ';' there, ':' being part of
+**		C:\...; HELP$K_NULLDEV; O_BINARY, 0 where the C RTL has no
+**		text mode - a library opened without it on Windows has its
+**		CR/LF translated and its reading stopped at the first ^Z.
+**
 **	X01-01		 4-OCT-2026	CLD
 **		HELP$K_ABORT_QUIT and HELP$K_ABORT_EXIT, the two values of
 **		ABORT of HELP$OUT: Q at the paging prompt stops the topic,
@@ -54,11 +61,11 @@
 #endif
 
 #ifndef	__IDENT__
-#define	__IDENT__	"X01-01"
+#define	__IDENT__	"X01-02"
 #endif
 
 #ifndef	__REV__
-#define	__REV__		"01.01.0"
+#define	__REV__		"01.02.0"
 #endif
 
 #ifndef	__FAC__
@@ -67,6 +74,7 @@
 
 #include	<stdint.h>
 #include	<stddef.h>
+#include	<fcntl.h>
 
 #include	"helpvers.h"
 
@@ -194,6 +202,18 @@ enum	{
 #define	HELP$K_MAXQUAL	64			/* Maximum qualifiers on a command	*/
 #define	HELP$K_MAXCATKEY 4096			/* Maximum topics in a catalogue	*/
 #define	HELP$K_LIBTYPE	".hlb"			/* File type of a help library		*/
+
+#ifdef	_WIN32
+#define	HELP$K_PATHSEP	';'			/* Separator of a search path - ':' is in C: (drive)	*/
+#define	HELP$K_NULLDEV	"NUL"			/* Where the quiet output goes		*/
+#else
+#define	HELP$K_PATHSEP	':'			/* Separator of a search path, as in PATH	*/
+#define	HELP$K_NULLDEV	"/dev/null"		/* Where the quiet output goes		*/
+#endif
+
+#ifndef	O_BINARY
+#define	O_BINARY	0			/* No text mode to be asked out of	*/
+#endif
 
 /*
 **  The characters that make a topic a wildcard rather than a name.  They

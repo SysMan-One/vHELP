@@ -1,6 +1,6 @@
 #define	__MODULE__	"HELPUTL"
-#define	__IDENT__	"X01-03"
-#define	__REV__		"01.03.0"
+#define	__IDENT__	"X01-04"
+#define	__REV__		"01.04.0"
 
 /*
 **++
@@ -42,6 +42,14 @@
 **
 **  MODIFICATION HISTORY:
 **
+**	X01-04		23-OCT-2026	RRL
+**		Windows x64 (MinGW-w64): help$getwinsz() asks the console
+**		(GetConsoleScreenBufferInfo) rather than TIOCGWINSZ;
+**		help$out_init() switches a console to UTF-8 for both ways,
+**		the text of a library being UTF-8 and the console's own code
+**		page (866, 1251 ...) turning Russian into mojibake;
+**		help$readfile() opens O_BINARY.
+**
 **	X01-03		 4-OCT-2026	CLD
 **		The paging prompt tells Q from end of file: Q raises
 **		HELP$K_ABORT_QUIT, which drops the rest of the topic and is
@@ -77,7 +85,13 @@
 #include	<unistd.h>
 #include	<fcntl.h>
 #include	<sys/stat.h>
+
+#ifdef	_WIN32
+#include	<windows.h>
+#include	<io.h>
+#else
 #include	<sys/ioctl.h>
+#endif
 
 #include	"helpdef.h"
 
@@ -384,7 +398,12 @@ int	help$getwinsz	(
 		unsigned *	a_height
 			)
 {
+#ifdef	_WIN32
+CONSOLE_SCREEN_BUFFER_INFO l_csbi = {0};
+unsigned	l_col, l_row;
+#else
 struct winsize	l_ws = {0};
+#endif
 
 	if ( a_width )
 		*a_width = HELP$K_DEFWIDTH;
@@ -392,6 +411,20 @@ struct winsize	l_ws = {0};
 	if ( a_height )
 		*a_height = HELP$K_DEFPAGE;
 
+#ifdef	_WIN32
+	/* The window, not the buffer: the buffer is thousands of lines tall */
+	if ( !GetConsoleScreenBufferInfo((HANDLE) _get_osfhandle(a_chan), &l_csbi) )
+		return	STS$K_WARN;
+
+	l_col = (unsigned) (l_csbi.srWindow.Right - l_csbi.srWindow.Left + 1);
+	l_row = (unsigned) (l_csbi.srWindow.Bottom - l_csbi.srWindow.Top + 1);
+
+	if ( a_width && (l_col >= HELP$K_MINWIDTH) )
+		*a_width = $MIN(l_col, HELP$K_MAXWIDTH);
+
+	if ( a_height && (l_row > 4) )
+		*a_height = l_row;
+#else
 	if ( ioctl(a_chan, TIOCGWINSZ, &l_ws) )
 		return	STS$K_WARN;
 
@@ -400,6 +433,7 @@ struct winsize	l_ws = {0};
 
 	if ( a_height && (l_ws.ws_row > 4) )
 		*a_height = l_ws.ws_row;
+#endif
 
 	return	STS$K_SUCCESS;
 }
@@ -444,6 +478,15 @@ unsigned	l_width = HELP$K_DEFWIDTH, l_height = HELP$K_DEFPAGE;
 	a_out->chan	= a_chan;
 	a_out->inchan	= a_inchan;
 	a_out->tty	= isatty(a_chan) && isatty(a_inchan);
+
+#ifdef	_WIN32
+	/* The text is UTF-8; a console shows it in its own code page unless told otherwise */
+	if ( isatty(a_chan) )
+		SetConsoleOutputCP(CP_UTF8);
+
+	if ( isatty(a_inchan) )
+		SetConsoleCP(CP_UTF8);
+#endif
 
 	help$getwinsz(a_chan, &l_width, &l_height);
 
@@ -1263,7 +1306,7 @@ int		l_fd;
 	*a_buf		= NULL;
 	*a_buflen	= 0;
 
-	if ( 0 > (l_fd = open(a_fspec, O_RDONLY)) )
+	if ( 0 > (l_fd = open(a_fspec, O_RDONLY | O_BINARY)) )
 		return	help$putmsg(HELP$_OPENIN, 3, (fao_prm_t) a_fspec, (fao_prm_t) errno, (fao_prm_t) strerror(errno));
 
 	if ( fstat(l_fd, &l_st) )
