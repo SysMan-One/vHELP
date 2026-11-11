@@ -335,9 +335,12 @@ fenced block, ``` or ~~~    copied verbatim, shifted right by two
                             (\x is \x there)
 [text](url)                 becomes: text
 ![alt](url)                 becomes: alt
+[text] with no (url)        stays as it is: [SMITH.WORK]X.TXT
 - item   * item   + item    the bullet becomes the letter o
 > quoted                    the marker is removed
-\x                          becomes: x
+\x                          becomes: x, when x is markup:
+                            \ ` * _ [ ] ( ) ! # + - < > ~ |
+                            any other \ stays: DOMAIN\user, C:\.x
 | a | b |                   copied as it stands
 ```
 

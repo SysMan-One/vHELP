@@ -1,6 +1,6 @@
 #define	__MODULE__	"MDPARSE"
-#define	__IDENT__	"X01-01"
-#define	__REV__		"01.01.0"
+#define	__IDENT__	"X01-02"
+#define	__REV__		"01.02.0"
 
 /*
 **++
@@ -43,9 +43,12 @@
 **
 **		The body of a topic is rendered into plain text: fenced code
 **		blocks are copied verbatim, the strong-emphasis markers, the
-**		code back-quotes and the link brackets are removed (the text of
-**		a code span is taken as it stands - a backslash in it is a
-**		backslash, as CommonMark has it), list
+**		code back-quotes and the brackets of a link - [text](url) -
+**		are removed (the text of a code span is taken as it stands - a
+**		backslash in it is a backslash, as CommonMark has it); brackets
+**		that are not a link stay, and a backslash escapes only a markup
+**		character (\ ` * _ [ ] ( ) ! # + - < > ~ |), any other backslash
+**		stays too.  List
 **		bullets become 'o' and the horizontal rules disappear.
 **		Leading and trailing blank lines of a topic are dropped, so
 **		the display never opens or closes with white space.
@@ -64,6 +67,17 @@
 **		emphasis and the links are not looked for between its
 **		back-quotes. `C:\ProgramData\yaVNA` came out as
 **		"C:ProgramDatayaVNA" (yaVNA's Windows help topics).
+**
+**	X01-02		11-NOV-2026	CLD
+**		Only [text](url) is a link, as CommonMark has it: brackets not
+**		followed by a (target) stay as they are - [SMITH.WORK]NOTES.TXT;5,
+**		+[days-]hh[:mm[:ss]], [dir...] lost their brackets.  A backslash
+**		escapes a markup character only, any other one is a
+**		backslash (narrower than CommonMark, which escapes all ASCII
+**		punctuation - a help text is full of paths): DOMAIN\user,
+**		%USERPROFILE%\.vbackup came out as
+**		DOMAINuser, %USERPROFILE%.vbackup.  An ! that does not open an
+**		image stays as well.
 **
 **--
 */
@@ -317,6 +331,91 @@ unsigned	l_len = a_len, l_namelen = (unsigned) strlen(a_name);
 **++
 **  FUNCTIONAL DESCRIPTION:
 **
+**	Tell a character that means something to this reader - the only
+**	ones a backslash escapes - from anything else.  CommonMark escapes
+**	every ASCII punctuation character; a help text is full of paths,
+**	and %USERPROFILE%\.vbackup or C:\$x must keep their backslash, so
+**	the set is narrowed to the markup: \ ` * _ [ ] ( ) ! # + - < > ~ |
+**
+**  FORMAL PARAMETERS:
+**
+**	a_chr	The character
+**
+**  IMPLICIT INPUTS/OUTPUTS:
+**	None.
+**
+**  RETURN VALUE:
+**	Non-zero for one of the markup characters.
+**--
+*/
+static	int	s_md$ismarkup	(
+		char		a_chr
+			)
+{
+	return	a_chr && (NULL != strchr("\\`*_[]()!#+-<>~|", a_chr));
+}
+
+
+/*
+**++
+**  FUNCTIONAL DESCRIPTION:
+**
+**	Tell whether a link - [text](target) - begins at a given position
+**	of a line: a closing bracket, an opening parenthesis right after it
+**	and a closing one further on.
+**
+**  FORMAL PARAMETERS:
+**
+**	a_srclen	Length of the line
+**	a_src		Address of the line
+**	a_pos		Position of the opening bracket
+**	a_txtlen	Receives the length of the text between the brackets
+**	a_end		Receives the position just past the closing parenthesis
+**
+**  IMPLICIT INPUTS/OUTPUTS:
+**	None.
+**
+**  RETURN VALUE:
+**	STS$K_SUCCESS	- a link begins there;
+**	STS$K_WARN	- it does not, the bracket is an ordinary character.
+**--
+*/
+static	int	s_md$islink	(
+		unsigned	a_srclen,
+	const	char *		a_src,
+		unsigned	a_pos,
+		unsigned *	a_txtlen,
+		unsigned *	a_end
+			)
+{
+const	char	*l_close, *l_paren;
+unsigned	l_txtend;
+
+	if ( (a_pos >= a_srclen) || (a_src[a_pos] != '[') )
+		return	STS$K_WARN;
+
+	if ( !(l_close = memchr(a_src + a_pos, ']', a_srclen - a_pos)) )
+		return	STS$K_WARN;
+
+	l_txtend = (unsigned) (l_close - a_src);
+
+	if ( ((l_txtend + 1) >= a_srclen) || (a_src[l_txtend + 1] != '(') )
+		return	STS$K_WARN;
+
+	if ( !(l_paren = memchr(a_src + l_txtend + 1, ')', a_srclen - l_txtend - 1)) )
+		return	STS$K_WARN;
+
+	*a_txtlen = l_txtend - a_pos - 1;
+	*a_end	= (unsigned) (l_paren - a_src) + 1;
+
+	return	STS$K_SUCCESS;
+}
+
+
+/*
+**++
+**  FUNCTIONAL DESCRIPTION:
+**
 **	Render one line of Markdown into plain text: remove the strong
 **	emphasis markers and the code back-quotes, unwrap the links, undo
 **	the backslash escapes and turn a list bullet into 'o'.  The leading
@@ -347,7 +446,7 @@ static	int	s_md$render	(
 		unsigned *	a_dstlen
 			)
 {
-unsigned	l_src = 0, l_dst = 0, l_ind = 0;
+unsigned	l_src = 0, l_dst = 0, l_ind = 0, l_txtlen = 0, l_end = 0;
 int		l_status = STS$K_SUCCESS;
 
 	*a_dstlen = 0;
@@ -377,8 +476,11 @@ int		l_status = STS$K_SUCCESS;
 
 	while ( (l_src < a_srclen) && (l_dst < a_dstsz) )
 		{
-		/* A backslash escapes the next character, whatever it is */
-		if ( (a_src[l_src] == '\\') && ((l_src + 1) < a_srclen) )
+		/*
+		**  A backslash escapes a markup character - \* \[ \\ - and nothing
+		**  else: DOMAIN\user and %USERPROFILE%\.vbackup keep their backslash.
+		*/
+		if ( (a_src[l_src] == '\\') && ((l_src + 1) < a_srclen) && s_md$ismarkup(a_src[l_src + 1]) )
 			{
 			a_dst [l_dst++] = a_src [++l_src];
 			l_src++;
@@ -436,38 +538,24 @@ int		l_status = STS$K_SUCCESS;
 			continue;
 			}
 
-		/* An image collapses to its alternate text, a link to "text (url)" */
-		if ( (a_src[l_src] == '!') && ((l_src + 1) < a_srclen) && (a_src[l_src + 1] == '[') )
+		/*
+		**  An image collapses to its alternate text, a link to its text:
+		**  the target is dropped - a plain text display cannot follow it.
+		**  Brackets that are not a link - [SMITH.WORK]X.TXT, [dir...] -
+		**  are ordinary characters.
+		*/
+		if ( (a_src[l_src] == '!') && (1 & s_md$islink(a_srclen, a_src, l_src + 1, &l_txtlen, &l_end)) )
 			{
 			l_src++;
 			continue;
 			}
 
-		if ( a_src[l_src] == '[' )
+		if ( (a_src[l_src] == '[') && (1 & s_md$islink(a_srclen, a_src, l_src, &l_txtlen, &l_end)) )
 			{
-		const	char *	l_close = memchr(a_src + l_src, ']', a_srclen - l_src);
-		unsigned	l_txtlen;
-
-			if ( !l_close )
-				{
-				a_dst [l_dst++] = a_src [l_src++];
-				continue;
-				}
-
-			l_txtlen = (unsigned) (l_close - (a_src + l_src)) - 1;
-
 			for ( unsigned i = 0; (i < l_txtlen) && (l_dst < a_dstsz); i++ )
 				a_dst [l_dst++] = a_src [l_src + 1 + i];
 
-			l_src += l_txtlen + 2;
-
-			/* Drop the target of the link - a plain text display cannot follow it */
-			if ( (l_src < a_srclen) && (a_src[l_src] == '(') )
-				{
-			const char *	l_paren = memchr(a_src + l_src, ')', a_srclen - l_src);
-
-				l_src = l_paren ? (unsigned) (l_paren - a_src) + 1 : a_srclen;
-				}
+			l_src = l_end;
 
 			continue;
 			}

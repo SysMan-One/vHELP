@@ -21,6 +21,9 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		11-NOV-2026	CLD	X01-38 : 67 - brackets that are not a link and a
+#					backslash before no markup character stay (mdparse.c X01-02).
+#
 #		23-OCT-2026	RRL	X01-38 : 66 - a code span is copied as it stands
 #					(mdparse.c X01-01).
 #
@@ -1488,6 +1491,50 @@ case "$SPAN" in
 	*'Path C:\ProgramData\yaVNA and a`b and *x* and **kept**.'*)
 		ok "a code span is copied as it stands" ;;
 	*)	ko "a code span rendered as: $SPAN" ;;
+esac
+
+#
+#	67. Only [text](url) is a link: other brackets stay, and so does a
+#	    backslash before no markup character; \[ \\ and a real link
+#	    work as before, an ! that opens no image stays.
+#
+cat > "$WRK/brk.md" <<'EOF'
+# BRK
+
+A [SMITH.WORK]NOTES.TXT;5 and +[days-]hh[:mm[:ss]] and [dir...] here.
+
+B DOMAIN\user and %USERPROFILE%\.vbackup\x.jnl and \[k\] and a\\b.
+
+C a [link](http://x.y) and ![img](i.png) and Hi! [x] end.
+
+    $ DIRECTORY [000000]X.Y
+EOF
+
+"$HELPTRAN" "$WRK/brk.md" /OUTPUT="$WRK/brk.hlb" > /dev/null 2>&1
+BRK=`"$HELP" /LIBRARY="$WRK/brk.hlb" BRK /NOPAGE 2>/dev/null`
+
+case "$BRK" in
+	*'A [SMITH.WORK]NOTES.TXT;5 and +[days-]hh[:mm[:ss]] and [dir...] here.'*)
+		ok "brackets that are not a link stay" ;;
+	*)	ko "brackets rendered as: `echo "$BRK" | grep 'A '`" ;;
+esac
+
+case "$BRK" in
+	*'B DOMAIN\user and %USERPROFILE%\.vbackup\x.jnl and [k] and a\b.'*)
+		ok "a backslash escapes markup characters only" ;;
+	*)	ko "backslashes rendered as: `echo "$BRK" | grep 'B '`" ;;
+esac
+
+case "$BRK" in
+	*'C a link and img and Hi! [x] end.'*)
+		ok "a link and an image lose their markup, a lone ! stays" ;;
+	*)	ko "links rendered as: `echo "$BRK" | grep 'C '`" ;;
+esac
+
+case "$BRK" in
+	*'$ DIRECTORY [000000]X.Y'*)
+		ok "an indented example keeps its brackets" ;;
+	*)	ko "an indented example rendered as: `echo "$BRK" | grep DIRECTORY`" ;;
 esac
 
 echo ""

@@ -15,6 +15,12 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		11-NOV-2026	CLD	X01-38 : Only [text](url) is a link: brackets with no
+#					(target) after them stay - [SMITH.WORK]X.TXT, [dir...],
+#					+[days-]hh[:mm[:ss]] lost them (as CommonMark has it); a
+#					backslash escapes a markup character only, DOMAIN\user and
+#					%USERPROFILE%\.vbackup keep theirs (mdparse.c X01-02).
+#
 #		23-OCT-2026	RRL	X01-38 : Windows x64.  The library and both utilities build
 #					with MinGW-w64 (yaVNA's cmake/mingw-w64-x86_64.cmake), so
 #					that yavna.exe answers HELP from its own yavna.hlb: a library
