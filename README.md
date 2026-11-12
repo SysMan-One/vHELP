@@ -248,7 +248,7 @@ Settings, all of them cache variables of the build:
 
 | | |
 |---|---|
-| `HELP_IDENT` | identification of the delivery, `X.aa-bb[ECOcc]` (`X.01-38`) |
+| `HELP_IDENT` | identification of the delivery, `X.aa-bb[ECOcc]` (`X.01-38ECO01`) |
 | `HELP_HELPNAME`, `HELP_TRANNAME` | names of the images, `vhelp` and `vhelptran` |
 | `HELP_FACILITY` | the level 1 key of the help library, `HELP` |
 | `HELP_LIBDIR` | where the libraries are installed, `share/help` |
