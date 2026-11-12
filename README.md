@@ -248,7 +248,7 @@ Settings, all of them cache variables of the build:
 
 | | |
 |---|---|
-| `HELP_IDENT` | identification of the delivery, `Xaa-bb[ECOc]` |
+| `HELP_IDENT` | identification of the delivery, `X.aa-bb[ECOcc]` (`X.01-38`) |
 | `HELP_HELPNAME`, `HELP_TRANNAME` | names of the images, `vhelp` and `vhelptran` |
 | `HELP_FACILITY` | the level 1 key of the help library, `HELP` |
 | `HELP_LIBDIR` | where the libraries are installed, `share/help` |
@@ -334,15 +334,15 @@ holds exactly what an installation holds:
     cpack --config build/CPackConfig.cmake
     cpack --config build/CPackSourceConfig.cmake
 
-The first makes `HELP-X01-36ECO2.tar.gz`, a tarball with `bin/`, `lib/`
+The first makes `HELP-X.01-38ECO02.tar.gz`, a tarball with `bin/`, `lib/`
 and `share/` at its top -- unpack it anywhere, the images find their
-libraries beside themselves -- and `help_1.36.2_amd64.deb` where
+libraries beside themselves -- and `help_1.38.2_amd64.deb` where
 `dpkg-deb` is found, an RPM where `rpmbuild` is.  The second makes
-`HELP-X01-36ECO2-src.tar.gz`, the sources alone.  A `.sha256` comes with
+`HELP-X.01-38ECO02-src.tar.gz`, the sources alone.  A `.sha256` comes with
 each.
 
-The version of a package follows from `HELP_IDENT`: `X01-36` is
-`1.36.0`, `X01-36ECO2` is `1.36.2`.  The archives are named
+The version of a package follows from `HELP_IDENT`: `X.01-38` is
+`1.38.0`, `X.01-38ECO02` is `1.38.2`.  The archives are named
 after the product and the ident, the DEB and the RPM as `dpkg` and
 `rpm` name theirs, so that a repository takes them as they come.
 
@@ -393,10 +393,13 @@ not install it.
 
 ## Conventions
 
-The identification of a module is `Xaa-bb`, with `ECOc` for a
-correction too small to be a revision of its own; `__REV__` follows
-from it as `aa.bb.c` and is never written by hand.  Both are checked
-when the build is configured, not merely by the test suite.
+The identification of a module is `X.aa-bb`, a dot after the letter,
+with `ECOcc` (always two digits) for a correction too small to be a
+revision of its own; `__REV__` follows from it as `aa.bb.cc` and is
+never written by hand.  A module not changed since 12-NOV-2026 keeps
+the older form `Xaa-bb[ECOc]` until its next revision; the build takes
+both.  Both are checked when the build is configured, not merely by the
+test suite.  A release is tagged with `HELP_IDENT` itself, with no `v`.
 
 Diagnostics go through the message catalogue of the facility, in the
 form `%HELP-S-MNEMONIC, text`, and always to the standard error --
