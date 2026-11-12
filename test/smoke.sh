@@ -21,6 +21,9 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		12-NOV-2026	CLD	X.01-38 : 58 - the ECO of the form X.aa-bb[ECOcc] is two
+#					digits, no more and no less (X.01-38ECO3 is refused).
+#
 #		12-NOV-2026	CLD	X01-38 : 58 - an ident may be X.aa-bb[ECOcc] as well as
 #					Xaa-bb[ECOc]; the history is ordered by its numbers rather
 #					than as text, where X01-38 came above X.01-39 and X01-38ECO1
@@ -1236,7 +1239,7 @@ do
 	#  the form itself
 	case "$ID" in
 	X[0-9][0-9]-[0-9][0-9]|X[0-9][0-9]-[0-9][0-9]ECO[0-9]*)	;;
-	X.[0-9][0-9]-[0-9][0-9]|X.[0-9][0-9]-[0-9][0-9]ECO[0-9]*)	;;
+	X.[0-9][0-9]-[0-9][0-9]|X.[0-9][0-9]-[0-9][0-9]ECO[0-9][0-9])	;;
 	*)	BAD="$BAD `basename $M`(form:$ID)" ; continue ;;
 	esac
 

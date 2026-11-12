@@ -15,6 +15,15 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		12-NOV-2026	CLD	X.01-38 : The form X.aa-bb[ECOcc] of HELP_IDENT and of every
+#					__IDENT__ is checked strictly: two digits in every field,
+#					X.01-38ECO3 is refused; the older Xaa-bb[ECOc] as it was.
+#
+#		12-NOV-2026	CLD	X.01-38 : HELPConfigVersion.cmake carries the version of the
+#					package, 1.38.0, taken from HELP_IDENT; it said 1.0.0, the
+#					PROJECT_VERSION never moved, so find_package(HELP 1.38) of a
+#					consumer was refused.  find_package(HELP 1.0) still holds.
+#
 #		12-NOV-2026	CLD	X.01-38 : HELP_IDENT in the form of the releases, X.01-38
 #					(was X01-38, never released): the tag of the first GitHub
 #					Release is the ident itself.  The version of the package
@@ -210,6 +219,15 @@ endif()
 #	Xaa-bb[ECOc] - yields aa.bb.c, the fields taken as they stand.  The
 #	one number that is written is the identification above it, so the
 #	two cannot disagree.
+#	The form X.aa-bb[ECOcc] is taken with two digits in every field and
+#	no others - X.01-38ECO3 and X.01-38ECO003 are refused; the older
+#	Xaa-bb[ECOc] as it was.
+if ( HELP_IDENT MATCHES "^X\\." AND NOT HELP_IDENT MATCHES "^X\\.[0-9][0-9]-[0-9][0-9](ECO[0-9][0-9])?$" )
+	message(FATAL_ERROR
+		"HELP_IDENT is '${HELP_IDENT}', which is not of the form "
+		"X.aa-bb[ECOcc] (two digits each) - see include/helpvers.h.in")
+endif()
+
 if ( HELP_IDENT MATCHES "^X\\.?([0-9]+)-([0-9]+)(ECO([0-9]+))?$" )
 	set(HELP_REV "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.")
 
@@ -226,8 +244,10 @@ if ( HELP_IDENT MATCHES "^X\\.?([0-9]+)-([0-9]+)(ECO([0-9]+))?$" )
 	#	zeros: DPKG and RPM compare "01" and "1" as equal, but the file
 	#	they name would read HELP_01.35.0, which looks like something
 	#	else.  The ident names the delivery, so the package carries the
-	#	ident's numbers rather than PROJECT_VERSION, which speaks of the
-	#	compatibility of the exported API and moves at its own pace.
+	#	ident's numbers rather than PROJECT_VERSION (1.0.0, never moved),
+	#	and so does HELPConfigVersion.cmake: find_package(HELP 1.38) is
+	#	answered by the version of the delivery, the major number - 1 -
+	#	still telling the compatible API apart.
 	#
 	#	Taken out of CMAKE_MATCH_n before the first REGEX REPLACE, which
 	#	resets every one of them
@@ -312,6 +332,10 @@ foreach ( m ${help_modules} )
 
 	string(REGEX REPLACE "^.*\"(.*)\".*$" "\\1" help_id "${help_id}")
 	string(REGEX REPLACE "^.*\"(.*)\".*$" "\\1" help_rev "${help_rev}")
+
+	if ( help_id MATCHES "^X\\." AND NOT help_id MATCHES "^X\\.[0-9][0-9]-[0-9][0-9](ECO[0-9][0-9])?$" )
+		message(FATAL_ERROR "${m}: __IDENT__ is '${help_id}', not of the form X.aa-bb[ECOcc] (two digits each)")
+	endif()
 
 	if ( NOT help_id MATCHES "^X\\.?([0-9]+)-([0-9]+)(ECO([0-9]+))?$" )
 		message(FATAL_ERROR "${m}: __IDENT__ is '${help_id}', not of the form X.aa-bb[ECOcc] (or Xaa-bb[ECOc])")
@@ -454,7 +478,7 @@ include(CMakePackageConfigHelpers)
 
 write_basic_package_version_file(
 	"${CMAKE_CURRENT_BINARY_DIR}/HELPConfigVersion.cmake"
-	VERSION		${PROJECT_VERSION}
+	VERSION		${HELP_PKG_VERSION}
 	COMPATIBILITY	SameMajorVersion)
 
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/HELPConfig.cmake"
