@@ -15,6 +15,15 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		12-NOV-2026	CLD	X01-38 : An ident may be written X.aa-bb[ECOcc] - a dot after
+#					the letter, the ECO written with two digits (a convention,
+#					not checked), the form of the releases from now on - as
+#					well as Xaa-bb[ECOc], which the modules not changed since
+#					keep: HELP_IDENT and every __IDENT__ are taken in both,
+#					__REV__ and the package numbers derived the same way
+#					(X.01-39ECO02 is 01.39.02, the package 1.39.2).  No ident
+#					changed by this.
+#
 #		11-NOV-2026	CLD	X01-38 : Only [text](url) is a link: brackets with no
 #					(target) after them stay - [SMITH.WORK]X.TXT, [dir...],
 #					+[days-]hh[:mm[:ss]] lost them (as CommonMark has it); a
@@ -192,10 +201,11 @@ endif()
 #	recognises @NAME@ only for a name made of the ordinary identifier
 #	characters - and so a -D on the command line needs no escaping.
 #
-#	__REV__ is not written, it is derived: Xaa-bb[ECOc] yields aa.bb.c,
-#	the fields taken as they stand.  The one number that is written is
-#	the identification above it, so the two cannot disagree.
-if ( HELP_IDENT MATCHES "^X([0-9]+)-([0-9]+)(ECO([0-9]+))?$" )
+#	__REV__ is not written, it is derived: X.aa-bb[ECOcc] - or the older
+#	Xaa-bb[ECOc] - yields aa.bb.c, the fields taken as they stand.  The
+#	one number that is written is the identification above it, so the
+#	two cannot disagree.
+if ( HELP_IDENT MATCHES "^X\\.?([0-9]+)-([0-9]+)(ECO([0-9]+))?$" )
 	set(HELP_REV "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.")
 
 	if ( CMAKE_MATCH_4 )
@@ -226,7 +236,7 @@ if ( HELP_IDENT MATCHES "^X([0-9]+)-([0-9]+)(ECO([0-9]+))?$" )
 else()
 	message(FATAL_ERROR
 		"HELP_IDENT is '${HELP_IDENT}', which is not of the form "
-		"Xaa-bb[ECOc] - see include/helpvers.h.in")
+		"X.aa-bb[ECOcc] (or the older Xaa-bb[ECOc]) - see include/helpvers.h.in")
 endif()
 configure_file(
 	${CMAKE_CURRENT_SOURCE_DIR}/include/helpvers.h.in
@@ -282,9 +292,9 @@ include(GNUInstallDirs)
 #
 #	Identification is not left to discipline: every module carries one
 #	number of its own - __IDENT__ - and __REV__ must follow from it by
-#	the rule Xaa-bb[ECOc] -> aa.bb.c.  Checking it here rather than only
-#	in the test suite means a mismatch stops the build that introduced
-#	it, not the next run of CTEST.
+#	the rule X.aa-bb[ECOcc] (or the older Xaa-bb[ECOc]) -> aa.bb.c.
+#	Checking it here rather than only in the test suite means a mismatch
+#	stops the build that introduced it, not the next run of CTEST.
 #
 set(help_common  src/helputl.c src/hlb.c src/mdparse.c src/mdgen.c src/hlbcat.c)
 set(help_modules ${help_common} src/help.c src/helptran.c)
@@ -298,8 +308,8 @@ foreach ( m ${help_modules} )
 	string(REGEX REPLACE "^.*\"(.*)\".*$" "\\1" help_id "${help_id}")
 	string(REGEX REPLACE "^.*\"(.*)\".*$" "\\1" help_rev "${help_rev}")
 
-	if ( NOT help_id MATCHES "^X([0-9]+)-([0-9]+)(ECO([0-9]+))?$" )
-		message(FATAL_ERROR "${m}: __IDENT__ is '${help_id}', not of the form Xaa-bb[ECOc]")
+	if ( NOT help_id MATCHES "^X\\.?([0-9]+)-([0-9]+)(ECO([0-9]+))?$" )
+		message(FATAL_ERROR "${m}: __IDENT__ is '${help_id}', not of the form X.aa-bb[ECOcc] (or Xaa-bb[ECOc])")
 	endif()
 
 	set(help_want "${CMAKE_MATCH_1}.${CMAKE_MATCH_2}.")

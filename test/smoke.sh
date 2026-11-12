@@ -21,6 +21,11 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		12-NOV-2026	CLD	X01-38 : 58 - an ident may be X.aa-bb[ECOcc] as well as
+#					Xaa-bb[ECOc]; the history is ordered by its numbers rather
+#					than as text, where X01-38 came above X.01-39 and X01-38ECO1
+#					above X.01-38ECO02.
+#
 #		11-NOV-2026	CLD	X01-38 : 67 - brackets that are not a link and a
 #					backslash before no markup character stay (mdparse.c X01-02).
 #
@@ -1209,10 +1214,11 @@ fi
 #
 #	58. Every module carries one number of its own - the identification -
 #	    and the rest follow from it: __IDENT__ is the topmost entry of the
-#	    revision history below it, and __REV__ is Xaa-bb[ECOc] rendered as
-#	    aa.bb.c.  A number written by hand is a number that drifts: all
-#	    seven modules once said __REV__ "1.0.0" while their idents had
-#	    moved on, and one said X-11 while its history said X.01-10.
+#	    revision history below it, and __REV__ is X.aa-bb[ECOcc] - or the
+#	    older Xaa-bb[ECOc] - rendered as aa.bb.c.  A number written by
+#	    hand is a number that drifts: all seven modules once said __REV__
+#	    "1.0.0" while their idents had moved on, and one said X-11 while
+#	    its history said X.01-10.
 #
 BAD=""
 
@@ -1220,17 +1226,23 @@ for M in "$HELP_SRC"/src/*.c
 do
 	ID=`sed -n 's/^#define\t__IDENT__\t"\(.*\)"/\1/p' "$M" | head -1`
 	RV=`sed -n 's/^#define\t__REV__\t\t"\(.*\)"/\1/p' "$M" | head -1`
-	TOP=`sed -n 's/^\*\*\t\(X[0-9][0-9]-[0-9][0-9][A-Z0-9]*\)\t.*/\1/p' "$M" | sort -r | head -1`
+	#  the topmost entry by its numbers, aa, bb and the ECO (0 if none):
+	#  as text the dot of X.aa-bb sorts below the digits, ECO1 above ECO02
+	TOP=`sed -n 's/^\*\*\t\(X\.\{0,1\}[0-9][0-9]-[0-9][0-9][A-Z0-9]*\)\t.*/\1/p' "$M" |
+		sed -e 's/^X\.\{0,1\}\([0-9]*\)-\([0-9]*\)$/\1 \2 0 &/' \
+		    -e 's/^X\.\{0,1\}\([0-9]*\)-\([0-9]*\)ECO\([0-9]*\)$/\1 \2 \3 &/' |
+		LC_ALL=C sort -k1,1nr -k2,2nr -k3,3nr | head -1 | sed 's/^.* //'`
 
 	#  the form itself
 	case "$ID" in
 	X[0-9][0-9]-[0-9][0-9]|X[0-9][0-9]-[0-9][0-9]ECO[0-9]*)	;;
+	X.[0-9][0-9]-[0-9][0-9]|X.[0-9][0-9]-[0-9][0-9]ECO[0-9]*)	;;
 	*)	BAD="$BAD `basename $M`(form:$ID)" ; continue ;;
 	esac
 
-	#  aa.bb.c out of Xaa-bb[ECOc]
-	AA=`expr "$ID" : 'X\([0-9][0-9]*\)-'`
-	BB=`expr "$ID" : 'X[0-9]*-\([0-9][0-9]*\)'`
+	#  aa.bb.c out of X.aa-bb[ECOcc] or Xaa-bb[ECOc]
+	AA=`expr "$ID" : 'X\.\{0,1\}\([0-9][0-9]*\)-'`
+	BB=`expr "$ID" : 'X\.\{0,1\}[0-9]*-\([0-9][0-9]*\)'`
 	CC=`expr "$ID" : '.*ECO\([0-9][0-9]*\)$'`
 	[ -z "$CC" ] && CC=0
 
