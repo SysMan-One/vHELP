@@ -15,7 +15,7 @@
 #
 #	12-NOV-2026	CLD	X01-38 : Initial version, the build and the ctest of the deb job of release.yml.
 #
-#	12-NOV-2026	CLD	STARLET_REF fde1672 = StarLet 1.7.3 (was 7e910f8, 1.7.2), with release.yml.
+#	12-NOV-2026	RRL	STARLET_REF fde1672 = StarLet 1.7.3 (was 7e910f8, 1.7.2), with release.yml.
 #--
 
 name: ci
