@@ -15,6 +15,11 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		12-NOV-2026	CLD	X.01-38 : HELP_IDENT in the form of the releases, X.01-38
+#					(was X01-38, never released): the tag of the first GitHub
+#					Release is the ident itself.  The version of the package
+#					is the same, 1.38.0.
+#
 #		12-NOV-2026	CLD	X01-38 : An ident may be written X.aa-bb[ECOcc] - a dot after
 #					the letter, the ECO written with two digits (a convention,
 #					not checked), the form of the releases from now on - as
@@ -125,7 +130,7 @@ endif()
 #
 #	Product identification and configuration
 #
-set(HELP_IDENT   "X01-38"  CACHE STRING  "Identification of the product")
+set(HELP_IDENT   "X.01-38"  CACHE STRING  "Identification of the product")
 
 #
 #	The one key of level 1 the help library carries.  The catalogue of a
