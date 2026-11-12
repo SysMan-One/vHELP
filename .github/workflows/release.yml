@@ -1,0 +1,216 @@
+#++
+#   FACILITY:	HELP - OpenVMS-style help subsystem: the release kits (amd64, arm64)
+#
+#   AUTHOR:	StarLet Squad and Ruslan R. Laishev (AKA: BadAss SysMan)
+#
+#   CREATION DATE: 12-NOV-2026
+#
+#	A push of the tag that is HELP_IDENT of CMakeLists.txt (X.01-38, X.01-38ECO02) builds the
+#	product, runs its regression tests (smoke, install, package) on both architectures, installs
+#	the .deb on Debian 12, Debian 13 and Ubuntu 24.04, and attaches the packages, the sources
+#	tarball, SHA256SUMS and its minisign signature to the Release of that tag.  The manual run
+#	(Actions -> release -> Run workflow) with the <tag> input does the same for an existing tag
+#	(the files of its Release are replaced); without it - only builds and tests the branch, see
+#	the run's artifacts.
+#
+#	Built on Debian 12 (bookworm): the images need glibc of bookworm or newer.  StarLet is a
+#	pinned commit (STARLET_REF) and is linked statically.  The package is made for the prefix
+#	/usr; its postinst builds the shared catalogue in /var/cache/help.
+#
+#	The tag must be HELP_IDENT exactly as CMakeLists.txt sets it; the ident is never given on
+#	the command line here, so a tag cannot name a kit the tree is not.
+#
+#	MODIFICATION HISTORY:
+#
+#	12-NOV-2026	CLD	X01-38 : Initial version, after MSCPHUB's release.yml.
+#--
+
+name: release
+
+on:
+  push:
+    tags: ['X.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "An existing tag (X.01-38), equal to HELP_IDENT of its tree, to build and release; empty - build only"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+env:
+  #	The pinned commit of StarLet - moved by hand, after a check
+  STARLET_REPO: "https://github.com/SysMan-One/utility_routines.git"
+  STARLET_REF: "7e910f809db2932c0a39904280322eb1eedef9d8"     # StarLet 1.7.2
+
+jobs:
+  deb:
+    name: build ${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: debian:bookworm
+    steps:
+      - name: Install prerequisites
+        run: |
+          apt-get update
+          apt-get install --yes --no-install-recommends build-essential cmake dpkg-dev file git ca-certificates
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Build and install StarLet
+        run: |
+          git init -q /tmp/starlet
+          git -C /tmp/starlet fetch -q --depth 1 "$STARLET_REPO" "$STARLET_REF"
+          git -C /tmp/starlet checkout -q FETCH_HEAD
+          git -C /tmp/starlet log -1 --format='StarLet: %H %cd'
+          cmake -S /tmp/starlet -B /tmp/starlet/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+          cmake --build /tmp/starlet/build -j "$(nproc)"
+          cmake --install /tmp/starlet/build
+
+      # The container runs as root: /var/cache/help is writable, the tests run in full
+      - name: Build, test, package
+        run: |
+          # libdir lib, not Debian's lib/<triplet>: CMake finds /usr/lib/cmake/HELP all the same,
+          # and test/install.sh and test/package.sh expect lib/
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib
+          cmake --build build -j "$(nproc)"
+          ctest --test-dir build --output-on-failure || {
+            rc=$?
+            # an annotation is visible without signing in: the names of the failed tests
+            for t in $(sed 's/^[0-9]*://' build/Testing/Temporary/LastTestsFailed.log); do echo "::error::ctest FAILED: $t"; done
+            exit $rc
+          }
+          (cd build && cpack -G DEB)
+
+      - name: Check the package
+        run: |
+          deb=$(ls build/*.deb)
+          dpkg-deb --info "$deb"
+          dpkg-deb --contents "$deb"
+          case "$deb" in *_${{ matrix.arch }}.deb) ;; *) echo "Wrong architecture: $deb"; exit 1;; esac
+          dpkg-deb --contents "$deb" | grep -q '/usr/bin/vhelp$'
+          dpkg-deb --contents "$deb" | grep -q 'share/help/helplib.hlb$'
+          dpkg-deb --contents "$deb" | grep -q '/usr/lib/cmake/HELP/HELPConfig.cmake$'
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: deb-${{ matrix.arch }}
+          path: build/*.deb
+          if-no-files-found: error
+
+  test:
+    name: install ${{ matrix.arch }} on ${{ matrix.distro }}
+    needs: deb
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+        distro: ['debian:bookworm', 'debian:trixie', 'ubuntu:noble']
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.distro }}
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: deb-${{ matrix.arch }}
+
+      - name: Install the package
+        run: |
+          apt-get update
+          apt-get install --yes ./*.deb
+          test -x /usr/bin/vhelp
+          test -x /usr/bin/vhelptran
+          test -f /usr/share/help/helplib.hlb
+          test -f /var/cache/help/catalog.idx
+
+      - name: Run it, remove it
+        run: |
+          # vhelp exits 0 on an unknown topic too: the text is what is checked
+          out=$(vhelp /LIBRARY=/usr/share/help/helplib.hlb HELP VHELPTRAN /NOPAGE)
+          echo "$out" | head -n 8
+          echo "$out" | grep -q 'Translates one or several Markdown files'
+          dpkg --purge help
+          test ! -e /usr/bin/vhelp
+          test ! -e /var/cache/help/catalog.idx
+
+  release:
+    name: GitHub Release
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/X.') || startsWith(inputs.tag, 'X.')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          path: src
+
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: 'deb-*'
+          merge-multiple: true
+
+      - name: Make the files of the Release
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          ident=$(sed -n 's/^set(HELP_IDENT[[:space:]]*"\([^"]*\)".*/\1/p' src/CMakeLists.txt)
+          test -n "$ident"
+          test "$TAG" = "$ident" || { echo "::error::the tag $TAG is not HELP_IDENT $ident of CMakeLists.txt"; exit 1; }
+          ls *.deb
+          test "$(ls *.deb | wc -l)" = 2
+          # The sources: the tree of the tag as git has it, nothing built in it
+          git -C src archive --format=tar.gz --prefix="HELP-$ident/" -o "$PWD/HELP-$ident.tar.gz" HEAD
+          ls -l *.deb *.tar.gz
+          sha256sum *.deb *.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+          echo "ident=$ident" >> "$GITHUB_ENV"
+
+      #	The secret MINISIGN_KEY is the secret key of minisign.pub, whole text
+      #	(no password); it lives in the runner's temporary directory for this
+      #	step only.  The signature is checked with the public key written below
+      #	(the one of minisign.pub) before anything is published.
+      - name: Sign SHA256SUMS
+        env:
+          MINISIGN_KEY: ${{ secrets.MINISIGN_KEY }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if [ -z "${MINISIGN_KEY}" ]
+          then
+            echo "::error::no MINISIGN_KEY secret - the release would go out unsigned"
+            exit 1
+          fi
+          sudo apt-get update -q && sudo apt-get install -y -q minisign
+          key="${RUNNER_TEMP}/minisign.key"
+          trap 'rm -f "${key}"' EXIT
+          ( umask 077; printf '%s\n' "${MINISIGN_KEY}" > "${key}" )
+          minisign -S -s "${key}" -m SHA256SUMS \
+            -t "HELP ${TAG} SHA256SUMS signed $(date -u +%d-%b-%Y | tr a-z A-Z)"
+          # The key is pinned here, not read from src/: a re-run of an older tag may have no minisign.pub.
+          minisign -Vm SHA256SUMS -P RWQl4NAqFsHKkNoHkS52WSZSk+2kb+e58DWYpoi/jVFa6TqOTAm3Ph14
+
+      - name: Attach the packages to the Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" *.deb *.tar.gz SHA256SUMS SHA256SUMS.minisig --clobber
+          else
+            gh release create "$TAG" *.deb *.tar.gz SHA256SUMS SHA256SUMS.minisig --title "HELP $ident" --notes-file - <<EOF
+          OpenVMS-style HELP subsystem for Linux: the librarian vhelptran and the browser vhelp. The .deb for amd64 and arm64 is installed on Debian 12, Debian 13 and Ubuntu 24.04: \`sudo apt install ./help_<version>_<arch>.deb\`. The files are in /usr; the postinst builds the shared catalogue in /var/cache/help.
+
+          To check a download: \`minisign -Vm SHA256SUMS -P RWQl4NAqFsHKkNoHkS52WSZSk+2kb+e58DWYpoi/jVFa6TqOTAm3Ph14\` (\`SHA256SUMS.minisig\` next to it), then \`sha256sum -c --ignore-missing SHA256SUMS\`.
+          EOF
+          fi

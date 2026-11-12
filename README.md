@@ -1,5 +1,7 @@
 # HELP
 
+[![CI](https://github.com/SysMan-One/vHELP/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/SysMan-One/vHELP/actions/workflows/ci.yml)
+
 An OpenVMS-style help subsystem for Linux: a librarian that translates
 Markdown into a help library, and a browser that navigates it.
 
@@ -357,6 +359,37 @@ files lie in a staging tree at that time, and the paths recorded would
 be those of the tree -- which is also why an install into a prefix
 other than the configured one, `cmake --install --prefix` included,
 leaves the catalogue to `vhelp /SYSCACHE`.
+
+## Releases
+
+A tag that is `HELP_IDENT` of `CMakeLists.txt`, exactly (`X.01-38`), makes a
+GitHub Release by `.github/workflows/release.yml`: the product is built on
+Debian 12 for amd64 and arm64, its tests are run, the DEB (prefix `/usr`)
+is installed on Debian 12, Debian 13 and Ubuntu 24.04, and the packages,
+the sources tarball `HELP-<ident>.tar.gz` and `SHA256SUMS` are attached.
+
+Every push to `master` and every pull request is built and tested the same
+way (Debian 12, x86_64 and aarch64, `ctest`) by `.github/workflows/ci.yml`,
+the badge at the top.
+
+## Checking a download
+
+A release carries `SHA256SUMS.minisig`, a
+[minisign](https://jedisct1.github.io/minisign/) signature of `SHA256SUMS`:
+one signature for every package and the sources tarball.  The public key is
+in `minisign.pub` here (the same key signs the kits of AlphaEmu, MSCPHUB and
+BATCH):
+
+    RWQl4NAqFsHKkNoHkS52WSZSk+2kb+e58DWYpoi/jVFa6TqOTAm3Ph14
+
+Put the files you took next to `SHA256SUMS` and `SHA256SUMS.minisig`, then:
+
+    minisign -Vm SHA256SUMS -P RWQl4NAqFsHKkNoHkS52WSZSk+2kb+e58DWYpoi/jVFa6TqOTAm3Ph14
+    sha256sum -c --ignore-missing SHA256SUMS
+
+The first must say `Signature and comment signature verified`, the second
+`OK` for every file.  Anything else - the file is not the one released: do
+not install it.
 
 ## Conventions
 

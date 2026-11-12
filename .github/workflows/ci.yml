@@ -1,0 +1,74 @@
+#++
+#   FACILITY:	HELP - OpenVMS-style help subsystem: the build and the tests on every push
+#
+#   AUTHOR:	StarLet Squad and Ruslan R. Laishev (AKA: BadAss SysMan)
+#
+#   CREATION DATE: 12-NOV-2026
+#
+#	A push to master, a pull request or a manual run (Actions -> ci -> Run workflow) builds
+#	HELP and runs its ctest (smoke, install, package) on x86_64 and aarch64, in the container
+#	of the release (Debian 12, bookworm; root, so /var/cache/help is writable and the tests run
+#	in full).  No package is published; the "CI" badge of README is the state of this workflow.
+#	StarLet is the same pinned commit as in release.yml - the two are moved together.
+#
+#	MODIFICATION HISTORY:
+#
+#	12-NOV-2026	CLD	X01-38 : Initial version, the build and the ctest of the deb job of release.yml.
+#--
+
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  #	The pinned commit of StarLet - moved by hand, after a check, with release.yml
+  STARLET_REPO: "https://github.com/SysMan-One/utility_routines.git"
+  STARLET_REF: "7e910f809db2932c0a39904280322eb1eedef9d8"     # StarLet 1.7.2
+
+jobs:
+  test:
+    name: test ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: debian:bookworm
+    steps:
+      - name: Install prerequisites
+        run: |
+          apt-get update
+          apt-get install --yes --no-install-recommends build-essential cmake dpkg-dev file git ca-certificates
+
+      - uses: actions/checkout@v5
+
+      - name: Build and install StarLet
+        run: |
+          git init -q /tmp/starlet
+          git -C /tmp/starlet fetch -q --depth 1 "$STARLET_REPO" "$STARLET_REF"
+          git -C /tmp/starlet checkout -q FETCH_HEAD
+          git -C /tmp/starlet log -1 --format='StarLet: %H %cd'
+          cmake -S /tmp/starlet -B /tmp/starlet/build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+          cmake --build /tmp/starlet/build -j "$(nproc)"
+          cmake --install /tmp/starlet/build
+
+      - name: Build and test
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=lib
+          cmake --build build -j "$(nproc)"
+          ctest --test-dir build --output-on-failure || {
+            rc=$?
+            # an annotation is visible without signing in: the names of the failed tests
+            for t in $(sed 's/^[0-9]*://' build/Testing/Temporary/LastTestsFailed.log); do echo "::error::ctest FAILED: $t"; done
+            exit $rc
+          }
