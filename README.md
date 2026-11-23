@@ -190,7 +190,8 @@ product with a manual per command keeps them under a single key:
 
 `FACILITY` names the root when it is not the project, and
 `NOFACILITY` declines it for a library meant to carry several keys at
-level 1.
+level 1.  `COMPONENT` puts the install of the library into that install
+component, for a product packaged by components (HELP 1.38.2 and later).
 
 A cross build -- the product built for another machine, Android with
 the NDK, say -- cannot run the translator the package carries: that

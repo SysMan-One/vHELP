@@ -1313,7 +1313,8 @@ fi
 #
 #	61. help_add_library() carries the facility root through, and takes
 #	    several sources into one library - a product with a manual per
-#	    command keeps them under a single key that way.  The helper is
+#	    command keeps them under a single key that way.  COMPONENT puts
+#	    the install of a library into that component only.  The helper is
 #	    exercised as a consumer sees it, through the installed package.
 #
 if command -v cmake > /dev/null 2>&1
@@ -1334,7 +1335,7 @@ find_package(HELP REQUIRED)
 help_add_library(NAME batch_help
                  SOURCE doc/submit.md doc/queue.md
                  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/batch.hlb
-                 ALL)
+                 COMPONENT docs ALL)
 help_add_library(NAME flat_help SOURCE doc/submit.md
                  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/flat.hlb NOFACILITY ALL)
 EOF
@@ -1353,6 +1354,15 @@ EOF
 			&& echo "$FLAT" | grep -q '^  SUBMIT$'
 		then	ok "help_add_library roots at the project, joins sources, and NOFACILITY opts out"
 		else	ko "help_add_library does not carry the facility through"
+		fi
+
+		#	the component install takes batch.hlb (COMPONENT docs)
+		#	and leaves flat.hlb (no COMPONENT) out
+		cmake --install "$CONS/b" --component docs --prefix "$CONS/cmp" > /dev/null 2>&1
+
+		if [ -f "$CONS/cmp/share/help/batch.hlb" ] && [ ! -f "$CONS/cmp/share/help/flat.hlb" ]
+		then	ok "help_add_library installs into the COMPONENT given"
+		else	ko "the install of COMPONENT docs: `ls -R "$CONS/cmp" 2>&1 | tr '\n' ' '`"
 		fi
 	else	ko "a consumer of help_add_library does not configure or build"
 	fi

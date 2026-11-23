@@ -22,10 +22,16 @@
 #				image it cannot execute.  Found building yaVNA with
 #				the Android NDK.
 #
+#	23-NOV-2026	RRL	X.01-38ECO02 : help_add_library() takes COMPONENT: the
+#				install of the library goes into that component.
+#				Without it the library fell into the default one,
+#				and a consumer packaging by components had to set
+#				CMAKE_INSTALL_DEFAULT_COMPONENT_NAME around the call.
+#
 
 #
 #  help_add_library(NAME target SOURCE file.md [OUTPUT file.hlb] [IDENT id]
-#                   [DESTINATION dir] [ALL])
+#                   [DESTINATION dir] [COMPONENT name] [ALL])
 #
 #  Translate the documentation of a product into a help library and install it
 #  where the browser looks for one.
@@ -37,6 +43,8 @@
 #  IDENT	the identification recorded in the library; PROJECT_VERSION
 #		by default
 #  DESTINATION	where it is installed; the help directory by default
+#  COMPONENT	the install component of the library; by default the one
+#		CMake gives an install() without COMPONENT
 #  ALL		build it as part of the default target
 #
 #  A help library is architecture-neutral, so nothing about it stands in the
@@ -131,7 +139,7 @@ function(help_translator cmd_var dep_var)
 endfunction()
 
 function(help_add_library)
-	cmake_parse_arguments(HLB "ALL;NOFACILITY" "NAME;OUTPUT;IDENT;DESTINATION;FACILITY" "SOURCE" ${ARGN})
+	cmake_parse_arguments(HLB "ALL;NOFACILITY" "NAME;OUTPUT;IDENT;DESTINATION;FACILITY;COMPONENT" "SOURCE" ${ARGN})
 
 	if(NOT HLB_NAME OR NOT HLB_SOURCE)
 		message(FATAL_ERROR "help_add_library: NAME and SOURCE are required")
@@ -229,5 +237,9 @@ function(help_add_library)
 		add_custom_target(${HLB_NAME} DEPENDS "${HLB_OUTPUT}")
 	endif()
 
-	install(FILES "${HLB_OUTPUT}" DESTINATION "${HLB_DESTINATION}")
+	if(HLB_COMPONENT)
+		install(FILES "${HLB_OUTPUT}" DESTINATION "${HLB_DESTINATION}" COMPONENT "${HLB_COMPONENT}")
+	else()
+		install(FILES "${HLB_OUTPUT}" DESTINATION "${HLB_DESTINATION}")
+	endif()
 endfunction()

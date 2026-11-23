@@ -15,6 +15,9 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		23-NOV-2026	RRL	X.01-38ECO02 : help_add_library() takes COMPONENT, the
+#					install component of the library (cmake/HELPHelpers.cmake).
+#
 #		12-NOV-2026	CLD	X.01-38ECO01 : The delivery of the two changes below: the
 #					HELPConfigVersion.cmake of 1.38.1 (X.01-38 installed one of
 #					1.0.0) and the strict X.aa-bb[ECOcc].  The package is 1.38.1.
@@ -143,7 +146,7 @@ endif()
 #
 #	Product identification and configuration
 #
-set(HELP_IDENT   "X.01-38ECO01"  CACHE STRING  "Identification of the product")
+set(HELP_IDENT   "X.01-38ECO02"  CACHE STRING  "Identification of the product")
 
 #
 #	The one key of level 1 the help library carries.  The catalogue of a
