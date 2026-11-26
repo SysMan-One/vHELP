@@ -21,6 +21,16 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		26-NOV-2026	RRL	X.01-38ECO03 : macOS (BSD userland).  21 and 49 - there
+#					is no timeout(1) there, a run is bounded by tmo, which falls
+#					back on the alarm of perl.  24 - the pseudo terminal is had
+#					with the BSD form of script(1) when the util-linux one
+#					(-qec) is refused.  60 - wc -l of BSD pads the count with
+#					blanks, the counts are compared as numbers.  61 - the
+#					consumer is told where StarLet is (HELP_STARLET_DIR): it is
+#					found by HELPConfig.cmake, and outside of a system prefix
+#					it was not found at all.
+#
 #		12-NOV-2026	CLD	X.01-38 : 58 - the ECO of the form X.aa-bb[ECOcc] is two
 #					digits, no more and no less (X.01-38ECO3 is refused).
 #
@@ -90,6 +100,19 @@ ko ()
 	CHECK=`expr $CHECK + 1`
 	FAILED=`expr $FAILED + 1`
 	echo "%HELP-E-SMOKE, $1"
+}
+
+#
+#	tmo <seconds> <command> ... - run a command bounded in time.
+#	timeout(1) is GNU coreutils, macOS has none; perl is there on
+#	both, and an alarm survives the exec of the command.
+#
+tmo ()
+{
+	if command -v timeout > /dev/null 2>&1
+	then	timeout "$@"
+	else	perl -e 'alarm shift; exec @ARGV or exit 127' "$@"
+	fi
 }
 
 #
@@ -407,7 +430,7 @@ fi
 #
 #	21. A redirected run neither pages nor prompts
 #
-echo "" | timeout 5 "$HELP" /LIBRARY="$WRK/lib.hlb" submit > /dev/null 2>&1
+echo "" | tmo 5 "$HELP" /LIBRARY="$WRK/lib.hlb" submit > /dev/null 2>&1
 STS=$?
 
 if [ $STS -eq 0 ]
@@ -443,7 +466,12 @@ if command -v script > /dev/null 2>&1
 then
 	printf 'submit\n/after\n\nexit\n' > "$WRK/in.24"
 
-	script -qec "$HELP /LIBRARY=$WRK/lib.hlb /NOPAGE" /dev/null < "$WRK/in.24" > "$WRK/o.24" 2>&1
+	#	util-linux: script -qec <command> <file>; BSD (macOS) has no -e
+	#	or -c and takes the command after the file instead
+	if script -qec true /dev/null < /dev/null > /dev/null 2>&1
+	then	script -qec "$HELP /LIBRARY=$WRK/lib.hlb /NOPAGE" /dev/null < "$WRK/in.24" > "$WRK/o.24" 2>&1
+	else	script -q /dev/null "$HELP" /LIBRARY="$WRK/lib.hlb" /NOPAGE < "$WRK/in.24" > "$WRK/o.24" 2>&1
+	fi
 
 	if grep -q 'Topic?' "$WRK/o.24" \
 		&& grep -q 'SUBMIT Subtopic?' "$WRK/o.24" \
@@ -1004,7 +1032,7 @@ ln -s "$WRK/tree" "$WRK/tree/a/loop" 2>/dev/null
 "$HELP" /LIBRARY="$WRK/tree" submit /NOPAGE > "$WRK/o.49" 2>&1
 STS1=$?
 
-timeout 30 "$HELP" /LIBRARY="$WRK/tree/..." submit /NOPAGE > "$WRK/o.49b" 2>&1
+tmo 30 "$HELP" /LIBRARY="$WRK/tree/..." submit /NOPAGE > "$WRK/o.49b" 2>&1
 STS2=$?
 
 if [ $STS1 -ne 0 ] && grep -q '%HELP-E-NOLIBS' "$WRK/o.49" \
@@ -1288,11 +1316,11 @@ TREE=`"$HELP" /LIBRARY="$WRK/fac.hlb" /LIST /NOPAGE 2>/dev/null`
 #	and its creator - and only what follows is the tree.  Counting by
 #	the name of the creator would tie this check to the name the images
 #	were built under, which is a setting.
-ROOTS=`echo "$TREE" | sed -n '5,$p' | sed -n 's/^  \([^ ].*\)$/\1/p' | wc -l`
+ROOTS=`echo "$TREE" | sed -n '5,$p' | sed -n 's/^  \([^ ].*\)$/\1/p' | wc -l | tr -d ' '`
 
 #	the sole level 1 key is the facility, the verbs sit below it, and the
 #	preamble became the text of the facility topic
-if [ "$ROOTS" = 1 ] \
+if [ "$ROOTS" -eq 1 ] \
 	&& echo "$TREE" | grep -q '^  BATCH$' \
 	&& echo "$TREE" | grep -q '^    SUBMIT$' \
 	&& echo "$TREE" | grep -q '^      /AFTER$' \
@@ -1303,9 +1331,9 @@ fi
 
 #	and the library of this product obeys the same rule
 OWN=`"$HELP" /LIBRARY="$HELP_BIN/helplib.hlb" /LIST /NOPAGE 2>/dev/null \
-	| sed -n 's/^  \([A-Z][A-Z]*\)$/\1/p' | wc -l`
+	| sed -n 's/^  \([A-Z][A-Z]*\)$/\1/p' | wc -l | tr -d ' '`
 
-if [ "$OWN" = 1 ]
+if [ "$OWN" -eq 1 ]
 then	ok "the library of this product carries one key of level 1"
 else	ko "the library of this product carries $OWN keys of level 1"
 fi
@@ -1340,7 +1368,10 @@ help_add_library(NAME flat_help SOURCE doc/submit.md
                  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/flat.hlb NOFACILITY ALL)
 EOF
 
-	if cmake -S "$CONS" -B "$CONS/b" -DCMAKE_PREFIX_PATH="$CONS/pkg" > /dev/null 2>&1 \
+	#	HELPConfig.cmake asks for StarLet in its turn, and StarLet is
+	#	where this build found it, not necessarily in a system prefix
+	if cmake -S "$CONS" -B "$CONS/b" -DCMAKE_PREFIX_PATH="$CONS/pkg" \
+			${HELP_STARLET_DIR:+"-DStarLet_DIR=$HELP_STARLET_DIR"} > /dev/null 2>&1 \
 		&& cmake --build "$CONS/b" > /dev/null 2>&1
 	then
 		ROOTED=`"$HELP" /LIBRARY="$CONS/b/batch.hlb" /LIST /NOPAGE 2>/dev/null`

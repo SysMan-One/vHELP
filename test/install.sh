@@ -29,6 +29,11 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		26-NOV-2026	RRL	X.01-38ECO03 : The directory the catalogue is searched
+#					for is the physical one: the utility names its library by the
+#					resolved path of its image, and on macOS /tmp is a link to
+#					/private/tmp.
+#
 #		11-SEP-2026	RRL	X01-36ECO1 : The relocated image proves it found the library
 #					beside it through its catalogue, and answers the topic with
 #					the run pinned to that library - the configured directory
@@ -128,12 +133,17 @@ fi
 #
 unset XDG_CACHE_HOME
 
+#	The utility finds its directory through the resolved name of its
+#	image (/proc/self/exe, or REALPATH on macOS), so the catalogue names
+#	the physical directory - on macOS /tmp is a link to /private/tmp
 LIBDIR="$WRK/root/share/help"
+PHYSDIR=`cd "$LIBDIR" 2>/dev/null && pwd -P`
+PHYSDIR=${PHYSDIR:-$LIBDIR}
 
 if [ -x "$WRK/root/bin/$HELP_HELPNAME" ]
 then
 	if env "HOME=$WRK/home" "$WRK/root/bin/$HELP_HELPNAME" /CATALOG /NOCACHE /NOPAGE 2>&1 \
-		| grep -q "^  $LIBDIR/helplib.hlb"
+		| grep -q "^  $PHYSDIR/helplib.hlb"
 	then	echo "%HELP-S-INSTALL, the installed utility finds the installed library"
 	else
 		echo "%HELP-E-INSTALL, the installed utility cannot find its library"

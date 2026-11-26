@@ -15,6 +15,13 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		26-NOV-2026	RRL	X.01-38ECO03 : macOS.  The image locates its library
+#					directory there too (hlbcat.c X.01-01ECO01).  The shared
+#					catalogue is best effort indeed: a directory that cannot be
+#					made (an unprivileged install, a system without /var/cache)
+#					stopped the install with an error; it is now reported and
+#					the catalogue left to HELP/SYSCACHE.
+#
 #		23-NOV-2026	RRL	X.01-38ECO02 : help_add_library() takes COMPONENT, the
 #					install component of the library (cmake/HELPHelpers.cmake).
 #
@@ -146,7 +153,7 @@ endif()
 #
 #	Product identification and configuration
 #
-set(HELP_IDENT   "X.01-38ECO02"  CACHE STRING  "Identification of the product")
+set(HELP_IDENT   "X.01-38ECO03"  CACHE STRING  "Identification of the product")
 
 #
 #	The one key of level 1 the help library carries.  The catalogue of a
@@ -600,21 +607,29 @@ if ( HELP_BUILD_SYSCACHE )
 	elseif ( NOT \"\${CMAKE_INSTALL_PREFIX}\" STREQUAL \"${CMAKE_INSTALL_PREFIX}\" )
 		message(STATUS \"Installing into \${CMAKE_INSTALL_PREFIX} rather than ${CMAKE_INSTALL_PREFIX}, the shared catalogue is left to HELP/SYSCACHE\")
 	else()
-		file(MAKE_DIRECTORY \"${HELP_SYSCACHE}\")
-
 		execute_process(
-			COMMAND \"${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${HELP_HELPNAME}\"
-				/SYSCACHE
-				/LIBRARY=${CMAKE_INSTALL_PREFIX}/${HELP_LIBDIR}
+			COMMAND \"${CMAKE_COMMAND}\" -E make_directory \"${HELP_SYSCACHE}\"
 			RESULT_VARIABLE help_rc
-			ERROR_VARIABLE  help_err
-			OUTPUT_QUIET)
+			OUTPUT_QUIET
+			ERROR_QUIET)
 
 		if ( NOT help_rc EQUAL 0 )
-			message(STATUS \"The shared catalogue was not built: \${help_err}\")
-			message(STATUS \"Run '${HELP_HELPNAME} /SYSCACHE' with the right to write ${HELP_SYSCACHE}\")
+			message(STATUS \"${HELP_SYSCACHE} cannot be made, the shared catalogue is left to HELP/SYSCACHE\")
 		else()
-			message(STATUS \"Shared catalogue: ${HELP_SYSCACHE}/catalog.idx\")
+			execute_process(
+				COMMAND \"${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}/${HELP_HELPNAME}\"
+					/SYSCACHE
+					/LIBRARY=${CMAKE_INSTALL_PREFIX}/${HELP_LIBDIR}
+				RESULT_VARIABLE help_rc
+				ERROR_VARIABLE  help_err
+				OUTPUT_QUIET)
+
+			if ( NOT help_rc EQUAL 0 )
+				message(STATUS \"The shared catalogue was not built: \${help_err}\")
+				message(STATUS \"Run '${HELP_HELPNAME} /SYSCACHE' with the right to write ${HELP_SYSCACHE}\")
+			else()
+				message(STATUS \"Shared catalogue: ${HELP_SYSCACHE}/catalog.idx\")
+			endif()
 		endif()
 	endif()
 	")

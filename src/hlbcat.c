@@ -1,6 +1,6 @@
 #define	__MODULE__	"HLBCAT"
-#define	__IDENT__	"X01-01"
-#define	__REV__		"01.01.0"
+#define	__IDENT__	"X.01-01ECO01"
+#define	__REV__		"01.01.01"
 
 /*
 **++
@@ -80,6 +80,13 @@
 **
 **  MODIFICATION HISTORY:
 **
+**	X.01-01ECO01	26-NOV-2026	RRL
+**		macOS has no /proc: the image is located with
+**		_NSGetExecutablePath there, and the name it returns - which
+**		may still be a symbolic link, or carry "." and ".." - is
+**		resolved by REALPATH, as the kernel resolves /proc/self/exe.
+**		An installed utility found no library beside itself on macOS.
+**
 **	X01-01		23-OCT-2026	RRL
 **		Windows x64 (MinGW-w64, for yaVNA's yavna.exe).  The search
 **		path is separated by HELP$K_PATHSEP (';' there).  There is no
@@ -112,6 +119,11 @@
 
 #ifdef	_WIN32
 #include	<windows.h>
+#endif
+
+#ifdef	__APPLE__
+#include	<stdint.h>
+#include	<mach-o/dyld.h>
 #endif
 
 #include	"helpdef.h"
@@ -253,8 +265,10 @@ unsigned	l_len = 0;
 **	it was configured for.
 **
 **	The image is located through /proc/self/exe, which is what Linux
-**	offers and what this product is for.  A system without it simply
-**	contributes nothing here, and the built-in path stands alone.
+**	offers and what this product is for; on macOS, which has no /proc,
+**	through _NSGetExecutablePath, resolved by REALPATH to the file
+**	itself.  A system without either simply contributes nothing here,
+**	and the built-in path stands alone.
 **
 **  FORMAL PARAMETERS:
 **
@@ -299,12 +313,30 @@ char		*l_sep;
 		*l_sep = '\0';
 		}
 #else
+#ifdef	__APPLE__
+char		l_raw [HELP$K_SZ_PATH], *l_res;
+uint32_t	l_rawsz = (uint32_t) sizeof(l_raw);
+
+	if ( _NSGetExecutablePath(l_raw, &l_rawsz) || !(l_res = realpath(l_raw, NULL)) )
+		return	STS$K_WARN;
+
+	/* The resolved name has to fit l_exe as well */
+	if ( strlen(l_res) >= sizeof(l_exe) )
+		{
+		free(l_res);
+		return	STS$K_WARN;
+		}
+
+	strcpy(l_exe, l_res);
+	free(l_res);
+#else
 ssize_t		l_red;
 
 	if ( 0 >= (l_red = readlink("/proc/self/exe", l_exe, sizeof(l_exe) - 1)) )
 		return	STS$K_WARN;
 
 	l_exe [l_red] = '\0';
+#endif
 
 	/* Strip the file name, then the 'bin' component it lives in */
 	if ( !strrchr(l_exe, '/') )

@@ -7,6 +7,10 @@
 #
 #	MODIFICATION HISTORY:
 #
+#		26-NOV-2026	RRL	X.01-38ECO03 : HELP_STARLET_DIR - the consumer of
+#					help_add_library in smoke.sh finds StarLet where this
+#					build did (macOS: a private prefix, not a system one).
+#
 #		23-OCT-2026	RRL	X01-38 : WIN32 - win_tran and win_show under the
 #					emulator instead of the shell tests.
 #
@@ -45,6 +49,7 @@ add_test(NAME smoke
 		HELP_HELPTRAN=$<TARGET_FILE:helptran>
 		HELP_SRC=${CMAKE_CURRENT_SOURCE_DIR}/..
 		HELP_BUILD_DIR=${PROJECT_BINARY_DIR}
+		HELP_STARLET_DIR=${StarLet_DIR}
 		sh ${CMAKE_CURRENT_SOURCE_DIR}/smoke.sh)
 
 #	What an installation contains - it once acquired the whole of the
